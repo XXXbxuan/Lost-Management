@@ -1,0 +1,109 @@
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Manage Staff') }}: {{ $staff->name }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900">
+                    <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Edit Details</h3>
+                    
+                    <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <x-input-label for="name" :value="__('Full Name')" />
+                                <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name', $staff->name)" required />
+                            </div>
+
+                            <div>
+                                <x-input-label for="email" :value="__('Email')" />
+                                <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $staff->user->email)" required />
+                            </div>
+
+                             <div>
+                                <x-input-label for="username" :value="__('Username')" />
+                                <x-text-input id="username" class="block mt-1 w-full" type="text" name="username" :value="old('username', $staff->user->username)" required />
+                            </div>
+
+                            <div>
+                                <x-input-label for="contact_number" :value="__('Contact Number')" />
+                                <x-text-input id="contact_number" class="block mt-1 w-full" type="text" name="contact_number" :value="old('contact_number', $staff->contact_number)" required />
+                            </div>
+
+                            <div>
+                                <x-input-label for="role" :value="__('Role')" />
+                                <select name="role" class="border-gray-300 rounded-md shadow-sm block mt-1 w-full">
+                                    <option value="Staff" {{ $staff->user->role == 'Staff' ? 'selected' : '' }}>Staff</option>
+                                    <option value="Admin" {{ $staff->user->role == 'Admin' ? 'selected' : '' }}>Admin</option>
+                                </select>
+                            </div>
+
+                            <div class="col-span-1 md:col-span-2">
+                                <x-input-label for="password" :value="__('New Password (Leave blank to keep current)')" />
+                                <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" autocomplete="new-password" />
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end mt-6">
+                            <x-primary-button>{{ __('Save Changes') }}</x-primary-button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-red-50 border border-red-200 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <h3 class="text-lg font-medium text-red-800 border-b border-red-200 pb-2 mb-4">Account Actions</h3>
+                    
+                    <div class="flex justify-between items-center">
+                        
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-700">Account Status: <span class="{{ $staff->status == 'Active' ? 'text-green-600' : 'text-red-600' }}">{{ $staff->status }}</span></h4>
+                            <p class="text-sm text-gray-600 mt-1">Blocked users cannot log in to the system.</p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="toggle_status" value="1">
+                            
+                            @if($staff->status === 'Active')
+                                <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+                                    Block User
+                                </button>
+                            @else
+                                <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                    Unblock User
+                                </button>
+                            @endif
+                        </form>
+                    </div>
+
+                    <div class="border-t border-red-200 my-4"></div>
+
+                    <div class="flex justify-between items-center">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-red-700">Delete Account</h4>
+                            <p class="text-sm text-red-600 mt-1">Permanently remove this user and all associated data.</p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.staff.destroy', $staff->staff_id) }}" onsubmit="return confirm('Are you sure? This action cannot be undone.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">
+                                Delete Account
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</x-app-layout>
