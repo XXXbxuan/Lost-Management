@@ -15,7 +15,19 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if(Auth::user()->role === 'Admin')
+                    <x-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
+                        {{ __('Staff Management') }}
+                    </x-nav-link>
+                    @endif
+                    @if(Auth::user()->role === 'Admin')
+                    <x-nav-link :href="route('admin.logs.index')" :active="request()->routeIs('admin.logs.index')">
+                        {{ __('Audit Logs') }}
+                    </x-nav-link>
+                    @endif
+                    
                 </div>
+                
             </div>
 
             <!-- Settings Dropdown -->

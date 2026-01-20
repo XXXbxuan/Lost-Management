@@ -24,23 +24,20 @@ class UpdateStaffRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->has('toggle_status')) {
+            return [];
+        }
         // 获取路由里的 staff 对象 (知道现在改的是谁)
         $staff = $this->route('staff');
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            
-            // 下面这两行用了 Rule::unique...->ignore()
-            // 意思是：检查重复时，要把“我自己”排除在外，不然自己不改名也会报错
-            'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($staff->user_id)],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($staff->user_id)],
-            
+            'username' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('users')->ignore($staff->user_id)],
+            'email' => ['required', 'string', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users')->ignore($staff->user_id)],
             'contact_number' => ['required', 'string', 'max:20'],
             'role' => ['required', 'in:Admin,Staff'],
             'department' => ['nullable', 'string', 'max:100'],
-            
-            // 密码是可选的：如果不填(nullable)，就不改密码；如果填了，就必须符合密码规则
-            'password' => ['nullable', Password::defaults()], 
+            'password' => ['nullable', \Illuminate\Validation\Rules\Password::defaults()],
         ];
     }
 }

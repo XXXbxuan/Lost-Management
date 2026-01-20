@@ -12,7 +12,7 @@
                 <div class="p-6 text-gray-900">
                     <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Edit Details</h3>
                     
-                    <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}">
+                    <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}" onsubmit="return confirm('Are you sure you want to change the status of this user?');">
                         @csrf
                         @method('PUT')
 
@@ -58,27 +58,33 @@
                 </div>
             </div>
 
-            <div class="bg-red-50 border border-red-200 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-red-50 border border-red-200 overflow-hidden shadow-sm sm:rounded-lg mt-6">
                 <div class="p-6">
                     <h3 class="text-lg font-medium text-red-800 border-b border-red-200 pb-2 mb-4">Account Actions</h3>
                     
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center mb-6">
                         
                         <div class="flex-1">
-                            <h4 class="font-bold text-gray-700">Account Status: <span class="{{ $staff->status == 'Active' ? 'text-green-600' : 'text-red-600' }}">{{ $staff->status }}</span></h4>
+                            <h4 class="font-bold text-gray-800">Account Status: 
+                                <span class="{{ $staff->status == 'Active' ? 'text-green-600' : 'text-red-600' }} font-bold">
+                                    {{ $staff->status }}
+                                </span>
+                            </h4>
                             <p class="text-sm text-gray-600 mt-1">Blocked users cannot log in to the system.</p>
                         </div>
-                        <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}">
+
+                        <form method="POST" action="{{ route('admin.staff.update', $staff->staff_id) }}" 
+                              onsubmit="return confirm('Are you sure you want to change the status of this user?');">
                             @csrf
                             @method('PUT')
                             <input type="hidden" name="toggle_status" value="1">
                             
                             @if($staff->status === 'Active')
-                                <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+                                <button type="submit" class="border border-red-600 text-red-600 bg-white px-4 py-2 rounded hover:bg-red-50 transition font-bold">
                                     Block User
                                 </button>
                             @else
-                                <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                <button type="submit" class="border border-green-600 text-green-600 bg-white px-4 py-2 rounded hover:bg-green-50 transition font-bold">
                                     Unblock User
                                 </button>
                             @endif

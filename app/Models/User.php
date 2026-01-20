@@ -48,5 +48,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+        
+    }
+    /**
+     * 关联：一个 User 对应一个 Staff 档案
+     */
+    public function staff()
+    {
+        return $this->hasOne(Staff::class, 'user_id');
     }
 }

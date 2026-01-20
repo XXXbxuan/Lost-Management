@@ -23,7 +23,8 @@ Route::middleware(['auth', 'admin']) // 1. 必须登录 + 必须是Admin
     ->group(function () {
 
         // 自动生成 index, create, store, edit, update, destroy 所有路由
-        Route::resource('staff', StaffController::class);
+    Route::resource('staff', StaffController::class);
+    Route::get('logs', [App\Http\Controllers\Admin\LogController::class, 'index'])->name('logs.index');
 
 });
 
