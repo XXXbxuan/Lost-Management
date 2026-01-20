@@ -25,7 +25,12 @@
                         {{ __('Audit Logs') }}
                     </x-nav-link>
                     @endif
-                    
+                    @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
+                    <x-nav-link :href="route('staff.lost-items.index')" :active="request()->routeIs('staff.lost-items.*')">
+                        {{ __('Lost Items') }}
+                    </x-nav-link>
+                    @endif
+                                    
                 </div>
                 
             </div>
