@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Lost Items Management') }}
+            {{ __('Found Items Management') }}
         </h2>
     </x-slot>
 
@@ -18,9 +18,9 @@
                 <div class="p-6 text-gray-900">
                     
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-lg font-bold text-gray-700">Items List</h3>
+                        <h3 class="text-lg font-bold text-gray-700">Found Items List</h3>
                         
-                        <a href="{{ route('staff.lost-items.create') }}" 
+                        <a href="{{ route('staff.found-items.create') }}" 
                            style="background-color: black; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-weight: bold;"
                            class="hover:bg-gray-700">
                             + Register New Item
@@ -37,7 +37,7 @@
                             </tr>
                         </thead>
                         <tbody class="text-gray-600 text-sm font-light">
-                            @forelse($lostItems as $item)
+                            @forelse($foundItems as $item)
                                 <tr class="border-b border-gray-200 hover:bg-gray-50">
                                     <td class="py-3 px-6 text-left">
                                         @if($item->image_path)
@@ -48,11 +48,17 @@
                                     </td>
                                     <td class="py-3 px-6 text-left">
                                         <div class="font-bold">{{ $item->item_name }}</div>
-                                        <div class="text-xs text-gray-500">{{ $item->category }}</div>
+                                        <div class="text-xs text-gray-500">{{ $item->category }} | {{ $item->color }}</div>
+                                        @if($item->brand)
+                                            <div class="text-xs text-gray-400">Brand: {{ $item->brand }}</div>
+                                        @endif
                                     </td>
                                     <td class="py-3 px-6 text-left">
                                         <div>{{ $item->found_location }}</div>
                                         <div class="text-xs text-gray-400">{{ $item->found_time }}</div>
+                                        @if($item->storage_location)
+                                            <div class="text-xs text-indigo-500 font-bold mt-1">Store: {{ $item->storage_location }}</div>
+                                        @endif
                                     </td>
                                     <td class="py-3 px-6 text-center">
                                         <span class="bg-yellow-100 text-yellow-800 py-1 px-3 rounded-full text-xs font-bold uppercase">{{ $item->status }}</span>
@@ -60,13 +66,13 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="py-6 text-center text-gray-500">No items found. Click the BLACK button to add one!</td>
+                                    <td colspan="4" class="py-6 text-center text-gray-500">No items found. Click the button to add one!</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
 
-                    <div class="mt-4">{{ $lostItems->links() }}</div>
+                    <div class="mt-4">{{ $foundItems->links() }}</div>
 
                 </div>
             </div>

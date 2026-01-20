@@ -3,73 +3,67 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\LostItem;
-use App\Services\LostItemService;
-use App\Http\Requests\StoreLostItemRequest;
+use App\Models\LostItemReport; // 依然使用 Report 模型存数据，逻辑更通顺
 use Illuminate\Http\Request;
 
 class LostItemController extends Controller
 {
-    protected $lostItemService;
-
-    public function __construct(LostItemService $lostItemService)
+    public function index()
     {
-        $this->lostItemService = $lostItemService;
+        // 获取所有报失单，最新的在最前面，每页显示 10 条
+        $lostReports = LostItemReport::latest()->paginate(10);
+        
+        return view('staff.lost_reports.index', compact('lostReports'));
     }
-
-    /**
-     * 1. 列表页 (Index)
-     */
-    public function index(Request $request)
-    {
-        $query = LostItem::query();
-
-        if ($request->has('search')) {
-            $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('item_name', 'like', "%{$search}%")
-                  ->orWhere('category', 'like', "%{$search}%")
-                  ->orWhere('found_location', 'like', "%{$search}%");
-            });
-        }
-
-        $lostItems = $query->latest('found_time')->paginate(10);
-
-        // 这里必须返回 View，之前可能漏了这句
-        return view('staff.lost_items.index', compact('lostItems'));
-    }
-
-    /**
-     * 2. 创建页 (Create)
-     */
+    // 1. 显示报失表单 (乘客端)
     public function create()
     {
-        return view('staff.lost_items.create');
+        // 这里的 View 我们等下建立，名字叫 lost_reports 也没问题
+        return view('staff.lost_reports.create');
     }
 
-    /**
-     * 3. 保存逻辑 (Store)
-     */
-    public function store(StoreLostItemRequest $request)
+    // 2. 保存报失数据
+    public function store(Request $request)
     {
-        // 获取所有验证过的数据
-        $data = $request->validated();
+        // 验证规则：乘客信息 + 物品详情 + 丢失地点
+        $validated = $request->validate([
+            // --- 乘客联系方式 ---
+            'passenger_name' => 'required|string|max:255',
+            'passenger_email' => 'required|email|max:255',
+            'passenger_phone' => 'required|string|max:20',
+            
+            // --- 物品详情 (复用组件的字段) ---
+            'item_name' => 'required|string|max:255',
+            'category' => 'required|string',
+            'brand' => 'nullable|string',
+            'serial_number' => 'nullable|string',
+            'color' => 'required|string',
+            'sub_colors' => 'nullable|array', // 多色逻辑
+            'image' => 'nullable|image|max:2048',
 
-        // 【核心修改】处理颜色逻辑
-        // 如果用户在 "Multi-color" 模式下选了具体颜色 (colors 数组)，我们就把它拼成字符串
+            // --- 丢失时间和地点 ---
+            'lost_location' => 'required|string', // 比如 Gate 5
+            'flight_number' => 'nullable|string', 
+            'lost_time' => 'required|date',
+            'description' => 'nullable|string',
+        ]);
+
+        // --- 逻辑处理：如果有选多色，就把数组变成字符串 ---
         if ($request->has('sub_colors') && is_array($request->input('sub_colors'))) {
-            // 结果会变成: "Multi-color (Red, Black, White)"
             $subColorsString = implode(', ', $request->input('sub_colors'));
-            $data['color'] = 'Multi-color (' . $subColorsString . ')';
+            if ($validated['color'] === 'Multi-color') {
+                $validated['color'] = 'Multi-color (' . $subColorsString . ')';
+            }
+        }
+        
+        // --- 逻辑处理：上传图片 ---
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
-        // 调用 Service 创建物品
-        $this->lostItemService->createLostItem(
-            $data, 
-            $request->file('image')
-        );
+        // --- 存入数据库 ---
+        LostItemReport::create($validated);
 
-        return redirect()->route('staff.lost-items.index')
-                         ->with('success', 'Lost item registered successfully.');
+        return redirect()->route('dashboard')->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
     }
 }
