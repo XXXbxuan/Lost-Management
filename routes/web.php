@@ -42,11 +42,16 @@ Route::middleware('auth')->group(function () {
     // 对应: LostItemController (为了匹配 Diagram)
     Route::get('staff/lost-items', [\App\Http\Controllers\Staff\LostItemController::class, 'index'])->name('staff.lost-items.index');
     
-    // 2. 创建页 (Create)
+    // 2. 创建页
     Route::get('staff/lost-items/create', [\App\Http\Controllers\Staff\LostItemController::class, 'create'])->name('staff.lost-items.create');
-    
-    // 3. 保存逻辑 (Store)
     Route::post('staff/lost-items', [\App\Http\Controllers\Staff\LostItemController::class, 'store'])->name('staff.lost-items.store');
+
+    // 🔥 [新增] 3. 匹配详情页 (这一行就是报错缺少的！)
+    Route::get('staff/lost-items/{id}', [\App\Http\Controllers\Staff\LostItemController::class, 'show'])->name('staff.lost-items.show');
+
+    Route::get('staff/match-verify/{lost_id}/{found_id}', [\App\Http\Controllers\Staff\LostItemController::class, 'verify'])
+        ->name('staff.match.verify');
+
 });
 
 // ====================================================

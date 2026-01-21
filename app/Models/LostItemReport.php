@@ -33,4 +33,10 @@ class LostItemReport extends Model
         // 状态
         'status',
     ];
+    protected $guarded = [];
+
+    // 🔥 [新增] 告诉 Laravel 这些字段是时间，不是文字！
+    protected $casts = [
+        'lost_time' => 'datetime',
+    ];
 }

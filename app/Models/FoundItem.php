@@ -9,13 +9,30 @@ class FoundItem extends Model
 {
     use HasFactory;
 
-    // 这一行很重要，告诉 Laravel 用 found_items 表
+    // 指定表名
     protected $table = 'found_items';
 
     protected $fillable = [
-        'item_name', 'category', 'brand', 'color', 'serial_number',
-        'found_location', 'flight_number', 'found_time', 'description',
-        'storage_location', 'image_path', 'status', 'staff_id', 'registered_by_name',
+        'item_name', 
+        'category', 
+        'brand', 
+        'color', 
+        'serial_number',
+        'found_location', 
+        'flight_number', 
+        'found_time', 
+        'description',
+        'storage_location', 
+        'image_path', 
+        'status', 
+        'staff_id', 
+        'registered_by_name',
+    ];
+
+    // 🔥 [新增] 关键设置：告诉 Laravel found_time 是时间格式
+    // 如果没有这行，Controller 里的 ->format() 就会报错！
+    protected $casts = [
+        'found_time' => 'datetime',
     ];
 
     // 关联 Staff

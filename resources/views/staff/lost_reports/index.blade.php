@@ -34,6 +34,7 @@
                                 <th class="py-3 px-6 text-left">Passenger Info</th>
                                 <th class="py-3 px-6 text-left">Lost Location</th>
                                 <th class="py-3 px-6 text-center">Status</th>
+                                <th class="py-3 px-6 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody class="text-gray-600 text-sm font-light">
@@ -41,21 +42,21 @@
                                 <tr class="border-b border-gray-200 hover:bg-gray-50">
                                     <td class="py-3 px-6 text-left whitespace-nowrap">
                                         <div class="font-medium">{{ $report->created_at->format('Y-m-d') }}</div>
-                                        <div class="text-xs text-gray-500">{{ $report->created_at->format('H:i A') }}</div>
+                                        <div class="text-xs text-gray-500">{{ $report->created_at->format('h:i A') }}</div>
                                     </td>
 
                                     <td class="py-3 px-6 text-left">
                                         <div class="flex items-center">
-                                            <div class="mr-4 flex-shrink-0">
+                                            <div class="mr-3">
                                                 @if($report->image_path)
-                                                    <img src="{{ asset('storage/' . $report->image_path) }}" class="w-12 h-12 rounded border object-cover">
+                                                    <img src="{{ asset('storage/' . $report->image_path) }}" class="w-10 h-10 rounded border object-cover">
                                                 @else
-                                                    <div class="w-12 h-12 rounded border bg-gray-100 flex items-center justify-center text-xs text-gray-400">No Pic</div>
+                                                    <div class="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center text-xs text-gray-400">No Pic</div>
                                                 @endif
                                             </div>
-                                            <div class="flex-grow">
-                                                <span class="font-bold block text-gray-800">{{ $report->item_name }}</span>
-                                                <span class="text-xs text-gray-500 block">{{ $report->category }} | {{ $report->color }}</span>
+                                            <div>
+                                                <span class="font-bold block">{{ $report->item_name }}</span>
+                                                <span class="text-xs text-gray-500">{{ $report->category }} | {{ $report->color }}</span>
                                             </div>
                                         </div>
                                     </td>
@@ -75,10 +76,17 @@
                                     <td class="py-3 px-6 text-center">
                                         <span class="bg-red-100 text-red-600 py-1 px-3 rounded-full text-xs font-bold uppercase">{{ $report->status }}</span>
                                     </td>
+
+                                    <td class="py-3 px-6 text-center">
+                                        <a href="{{ route('staff.lost-items.show', $report->id) }}" 
+                                           class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-blue-700 shadow-sm transition">
+                                            ⚡ Match
+                                        </a>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="py-6 text-center text-gray-500">
+                                    <td colspan="6" class="py-6 text-center text-gray-500">
                                         No lost reports found. Click the button to create one.
                                     </td>
                                 </tr>
