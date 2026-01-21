@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Http\Controllers\Staff;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\LostItemReport;
+use App\Models\FoundItem;
+use App\Models\MatchRecord;
+use App\Models\Claim;
+use Illuminate\Support\Facades\DB;
+
+class ClaimController extends Controller
+{
+    // 使用你定义的函数名
+    public function createClaim(Request $request)
+    {
+        // 获取 Lost Report
+        $lostReport = LostItemReport::findOrFail($request->lost_id);
+        
+        // 获取匹配记录 (加上 firstOrFail 确保如果没有匹配记录就报错，不会往下走导致崩溃)
+        $match = MatchRecord::where('lostId', $lostReport->id)
+                            ->where('status', 'Verified')
+                            ->firstOrFail();
+
+        // 获取对应的拾获物品
+        $foundItem = FoundItem::findOrFail($match->foundId);
+
+        // 🔥 记得把 $match 也传过去，因为 View 可能会用到相似度分数
+        return view('staff.claims.create', compact('lostReport', 'foundItem', 'match'));
+    }
+
+    /**
+     * 保存认领结果的逻辑 (Module 7)
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'lostId' => 'required',
+            'foundId' => 'required',
+            'claimerName' => 'required|string|max:255',
+            'claimerIcPassport' => 'required|string|max:50',
+            'claimerPhone' => 'required|string|max:20',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            // 1. 创建 Claim 记录
+            Claim::create([
+                'lostId' => $request->lostId,
+                'foundId' => $request->foundId,
+                'claimerName' => $request->claimerName,
+                'claimerIcPassport' => $request->claimerIcPassport,
+                'claimerPhone' => $request->claimerPhone,
+                'processedBy' => auth()->id(),
+                'claimedAt' => now(),
+            ]);
+
+            // 2. 更新 Lost 和 Found 的状态为 Claimed
+            LostItemReport::where('id', $request->lostId)->update(['status' => 'Claimed']);
+            FoundItem::where('id', $request->foundId)->update(['status' => 'Claimed']);
+        });
+
+        return redirect()->route('staff.lost-items.index')->with('success', 'Handover completed! Item is now marked as Claimed.');
+    }
+}

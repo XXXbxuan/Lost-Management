@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LostItemReport; // 依然使用 Report 模型存数据，逻辑更通顺
 use Illuminate\Http\Request;
 use App\Models\FoundItem;       // <--- 🔥 报错就是因为缺了这一行！
+use App\Models\MatchRecord;
 
 class LostItemController extends Controller
 {
@@ -73,8 +74,14 @@ class LostItemController extends Controller
         // 1. 获取当前的主角：报失单
         $lostReport = LostItemReport::findOrFail($id);
 
-        // 2. 初始化查询构建器
-        $query = FoundItem::where('status', 'Unclaimed');
+        // 🔥 [新增] 获取所有之前被标记为 "Rejected" (Not Matched) 的 FoundItem ID
+        $rejectedIds = \App\Models\MatchRecord::where('lostId', $id)
+            ->where('status', 'Rejected')
+            ->pluck('foundId');
+
+        // 修改查询：排除掉这些 ID
+        $query = FoundItem::where('status', 'Unclaimed')
+        ->whereNotIn('id', $rejectedIds); // 关键：不再显示失败过的物品
 
         $isManualSearch = $request->has('search');
 
@@ -146,8 +153,9 @@ class LostItemController extends Controller
         }
         
         $candidateMatches = $candidateMatches->sortByDesc('similarity_score');
+        $rejectedItems = FoundItem::whereIn('id', $rejectedIds)->get();
 
-        return view('staff.lost_reports.show', compact('lostReport', 'candidateMatches'));
+        return view('staff.lost_reports.show', compact('lostReport', 'candidateMatches', 'rejectedItems'));
     }
     public function verify($lost_id, $found_id)
     {
@@ -158,4 +166,54 @@ class LostItemController extends Controller
         // 带他们去“相亲房” (视图)
         return view('staff.lost_reports.verify', compact('lostReport', 'foundItem'));
     }
+
+    public function storeMatch(Request $request)
+    {
+        // 1. 验证输入 [cite: 358]
+        $request->validate([
+            'lost_id' => 'required',
+            'found_id' => 'required',
+            'outcome' => 'required|in:matched,not_matched',
+            'notes' => 'required|string|max:500',
+        ]);
+
+        // 2. 创建匹配记录 (对应 Match Record Table [cite: 417, 418])
+        \App\Models\MatchRecord::create([
+            'lostId' => $request->lost_id,
+            'foundId' => $request->found_id,
+            'notes' => $request->notes,
+            'status' => $request->outcome == 'matched' ? 'Verified' : 'Rejected',
+            'verifiedBy' => auth()->id(), // 记录处理人 [cite: 418]
+            'verifiedAt' => now(), // 记录时间戳 [cite: 304, 418]
+            'similarityScore' => $request->similarity_score ?? 0,
+        ]);
+
+        // 3. 如果结果是 Matched，更新状态为 "Matched" [cite: 358]
+        if ($request->outcome == 'matched') {
+            \App\Models\LostItemReport::where('id', $request->lost_id)->update(['status' => 'Matched']);
+            \App\Models\FoundItem::where('id', $request->found_id)->update(['status' => 'Matched']);
+        }
+
+        return redirect()->route('staff.lost-items.index')->with('success', 'Verification record saved.');
+    }
+    public function unmatch($lostId)
+    {
+        // 1. 找到对应的匹配记录
+        $match = \App\Models\MatchRecord::where('lostId', $lostId)->first();
+        
+        if ($match) {
+            // 2. 将关联的 Found Item 状态改回 Unclaimed
+            \App\Models\FoundItem::where('id', $match->foundId)->update(['status' => 'Unclaimed']);
+            
+            // 3. 将当前的 Lost Report 状态改回 LOST
+            \App\Models\LostItemReport::where('id', $lostId)->update(['status' => 'LOST']);
+            
+            // 4. 删除匹配记录
+            $match->delete();
+        }
+
+        return redirect()->back()->with('success', 'Match has been cancelled. Items are back to original status.');
+    }
+
+    
 }

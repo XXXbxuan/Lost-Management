@@ -6,21 +6,21 @@
     </x-slot>
 
     <div class="py-6">
-        <div class="max-w-[85rem] mx-auto sm:px-6 lg:px-8"> 
+        <div class="max-w-[95rem] mx-auto sm:px-6 lg:px-8"> 
             
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
                 <div class="lg:col-span-3 space-y-6">
                     
-                    <div class="bg-white p-4 shadow rounded-lg border border-gray-200">
-                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-sm">Filter Criteria</h3>
+                    <div class="bg-white p-4 shadow-sm rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-xs uppercase tracking-wider">Filter Criteria</h3>
                         
                         <form method="GET" action="{{ route('staff.lost-items.show', $lostReport->id) }}">
                             <input type="hidden" name="search" value="1">
                             
-                            <div class="mb-2">
-                                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Category</label>
-                                <select name="category" class="w-full text-sm rounded border-gray-300 py-1.5">
+                            <div class="mb-3">
+                                <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Category</label>
+                                <select name="category" class="w-full text-sm rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-1.5">
                                     <option value="">-- All --</option>
                                     <option value="Electronics" {{ request('category', $lostReport->category) == 'Electronics' ? 'selected' : '' }}>Electronics</option>
                                     <option value="Bag" {{ request('category', $lostReport->category) == 'Bag' ? 'selected' : '' }}>Bag</option>
@@ -31,9 +31,9 @@
                                 </select>
                             </div>
 
-                            <div class="mb-2">
-                                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Location</label>
-                                <select name="location" class="w-full text-sm rounded border-gray-300 py-1.5">
+                            <div class="mb-3">
+                                <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Found Location</label>
+                                <select name="location" class="w-full text-sm rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-1.5">
                                     <option value="">-- All --</option>
                                     <option value="Airplane Cabin" {{ request('location') == 'Airplane Cabin' ? 'selected' : '' }}>Airplane Cabin</option>
                                     <option value="Check-in Counter" {{ request('location') == 'Check-in Counter' ? 'selected' : '' }}>Check-in Counter</option>
@@ -42,8 +42,8 @@
                                 </select>
                             </div>
 
-                            <div class="mb-2">
-                                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Date Range</label>
+                            <div class="mb-3">
+                                <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Date Range</label>
                                 <div class="flex gap-2">
                                     <input type="date" name="date_from" value="{{ request('date_from', $lostReport->lost_time->format('Y-m-d')) }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
                                     <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
@@ -51,29 +51,32 @@
                             </div>
 
                             <div class="mb-4">
-                                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Keyword</label>
-                                <input type="text" name="keyword" value="{{ request('keyword') }}" placeholder="Search..." class="w-full text-sm rounded border-gray-300 py-1.5">
+                                <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Keyword</label>
+                                <input type="text" name="keyword" value="{{ request('keyword') }}" placeholder="Search items..." class="w-full text-sm rounded border-gray-300 py-1.5">
                             </div>
 
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700 transition">
-                                Search
+                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-bold text-xs hover:bg-blue-700 transition shadow-sm">
+                                SEARCH / REFRESH
                             </button>
                         </form>
                     </div>
 
-                    <div class="bg-white p-4 shadow rounded-lg border border-gray-200">
-                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-sm">Lost Report (Main)</h3>
-                        <div class="space-y-2 text-sm">
-                            <p><span class="text-xs font-bold text-gray-500 block">ID</span> #{{ $lostReport->id }}</p>
-                            <p><span class="text-xs font-bold text-gray-500 block">Passenger</span> {{ $lostReport->passenger_name }}</p>
-                            <p><span class="text-xs font-bold text-gray-500 block">Category</span> {{ $lostReport->category }}</p>
-                            <p><span class="text-xs font-bold text-gray-500 block">Location</span> {{ $lostReport->lost_location }}</p>
-                            <p><span class="text-xs font-bold text-gray-500 block">Date</span> {{ $lostReport->lost_time->format('Y-m-d') }}</p>
+                    <div class="bg-white p-4 shadow-sm rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-xs uppercase tracking-wider">Lost Report (Main)</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                <span class="text-[10px] font-bold text-gray-400 block uppercase">Report ID</span>
+                                <span class="font-black text-red-600">#{{ $lostReport->id }}</span>
+                            </div>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Passenger</span> <span class="font-semibold">{{ $lostReport->passenger_name }}</span></p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Item Details</span> {{ $lostReport->item_name }} ({{ $lostReport->color }})</p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Lost At</span> {{ $lostReport->lost_location }}</p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Date</span> {{ $lostReport->lost_time->format('Y-m-d') }}</p>
                             
                             @if($lostReport->image_path)
                                 <div class="mt-2">
-                                    <span class="text-xs font-bold text-gray-500 block mb-1">Photo</span>
-                                    <img src="{{ asset('storage/' . $lostReport->image_path) }}" class="w-full rounded border">
+                                    <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Reference Photo</span>
+                                    <img src="{{ asset('storage/' . $lostReport->image_path) }}" class="w-full rounded border shadow-sm">
                                 </div>
                             @endif
                         </div>
@@ -84,9 +87,9 @@
                     
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-lg text-gray-700">
-                            Candidate Matches
-                            <span class="ml-2 text-sm font-normal text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
-                                {{ $candidateMatches->count() }} records (>50%)
+                            Candidate Matches 
+                            <span class="ml-2 text-xs font-normal text-gray-500 bg-gray-100 border px-2 py-1 rounded-full italic">
+                                {{ $candidateMatches->count() }} high-similarity matches found
                             </span>
                         </h3>
                     </div>
@@ -94,58 +97,80 @@
                     @if($candidateMatches->count() > 0)
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                             @foreach($candidateMatches as $found)
-                                <div class="bg-white rounded border border-gray-200 overflow-hidden hover:shadow-lg transition flex flex-col h-full relative group">
+                                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col h-full relative group shadow-sm">
                                     
-                                    <div class="h-32 bg-gray-100 w-full relative">
+                                    <div class="h-32 bg-gray-50 w-full relative border-b overflow-hidden">
                                         @if($found->image_path)
-                                            <img src="{{ asset('storage/' . $found->image_path) }}" class="w-full h-full object-cover">
+                                            <img src="{{ asset('storage/' . $found->image_path) }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                         @else
-                                            <div class="flex items-center justify-center h-full text-gray-400 text-xs">No Image</div>
+                                            <div class="flex items-center justify-center h-full text-gray-300 text-[10px] flex-col">
+                                                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                No Photo
+                                            </div>
                                         @endif
-                                        <div class="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[10px] font-bold border shadow-sm">
+                                        <div class="absolute top-1 right-1 bg-black/70 text-white px-1.5 py-0.5 rounded text-[9px] font-bold">
                                             #{{ $found->id }}
                                         </div>
                                     </div>
 
-                                    <div class="p-2 flex-grow flex flex-col justify-between">
+                                    <div class="p-2.5 flex-grow flex flex-col justify-between">
                                         <div>
-                                            <h4 class="font-bold text-gray-800 text-sm truncate" title="{{ $found->item_name }}">{{ $found->item_name }}</h4>
-                                            <div class="text-[10px] text-gray-500 mt-1">
-                                                <p>{{ $found->found_time ? $found->found_time->format('Y-m-d') : 'N/A' }}</p>
-                                                <p class="truncate">{{ $found->location }}</p>
+                                            <h4 class="font-black text-gray-900 text-xs truncate mb-1" title="{{ $found->item_name }}">{{ $found->item_name }}</h4>
+                                            <div class="text-[10px] text-gray-500 space-y-0.5">
+                                                <p class="flex items-center">📅 {{ $found->found_time ? $found->found_time->format('Y-m-d') : 'N/A' }}</p>
+                                                <p class="flex items-center truncate">📍 {{ $found->found_location }}</p>
                                             </div>
                                         </div>
 
-                                        <div class="mt-2">
-                                            <div class="flex justify-between text-[10px] font-bold">
-                                                <span>Match</span>
+                                        <div class="mt-3">
+                                            <div class="flex justify-between text-[9px] font-black mb-1 uppercase">
+                                                <span class="text-gray-400">Match Score</span>
                                                 <span class="{{ $found->similarity_score >= 80 ? 'text-green-600' : 'text-yellow-600' }}">
                                                     {{ $found->similarity_score }}%
                                                 </span>
                                             </div>
-                                            <div class="w-full bg-gray-200 rounded-full h-1 mt-0.5">
-                                                <div class="h-1 rounded-full {{ $found->similarity_score >= 80 ? 'bg-green-500' : 'bg-yellow-500' }}" 
+                                            <div class="w-full bg-gray-100 rounded-full h-1.5 border border-gray-50">
+                                                <div class="h-1.5 rounded-full {{ $found->similarity_score >= 80 ? 'bg-green-500' : 'bg-yellow-500' }} shadow-inner" 
                                                      style="width: {{ $found->similarity_score }}%"></div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <a href="{{ route('staff.match.verify', ['lost_id' => $lostReport->id, 'found_id' => $found->id]) }}" 
-                                       class="block w-full text-center py-2 bg-gray-50 hover:bg-blue-50 text-blue-600 font-bold text-xs border-t">
-                                        Details / Verify
+                                       class="block w-full text-center py-2 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-black text-[10px] border-t transition-colors uppercase tracking-widest">
+                                        Verify Match
                                     </a>
                                 </div>
                             @endforeach
                         </div>
                     @else
-                        <div class="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">
-                            <h3 class="text-lg font-medium text-gray-900">No matches found</h3>
-                            <p class="mt-2 text-sm text-gray-500">Try adjusting the filter criteria.</p>
+                        <div class="bg-white p-16 rounded-lg shadow-sm border border-gray-200 text-center">
+                            <p class="text-gray-400 text-sm italic">No matching unclaimed items found with current filters.</p>
                         </div>
                     @endif
-                </div>
 
-            </div>
+                    @if(isset($rejectedItems) && $rejectedItems->count() > 0)
+                        <div class="mt-12 border-t pt-6">
+                            <h4 class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                                <span class="bg-gray-100 p-1 rounded mr-2">🚫</span> Previously Rejected (Not Matched)
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                @foreach($rejectedItems as $rejected)
+                                    <div class="bg-gray-50 border border-gray-200 rounded p-2 flex items-center gap-2 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition">
+                                        @if($rejected->image_path)
+                                            <img src="{{ asset('storage/' . $rejected->image_path) }}" class="w-8 h-8 object-cover rounded shadow-xs border">
+                                        @endif
+                                        <div class="text-[9px] truncate">
+                                            <p class="font-bold text-gray-600 truncate">#{{ $rejected->id }}</p>
+                                            <p class="text-gray-400 italic">Rejected</p>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                </div> </div>
         </div>
     </div>
 </x-app-layout>

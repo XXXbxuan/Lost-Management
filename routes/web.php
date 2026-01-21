@@ -41,6 +41,13 @@ Route::middleware('auth')->group(function () {
     // [Module 5] Passenger Lost Items (乘客报失单 - Staff Side)
     // 对应: LostItemController (为了匹配 Diagram)
     Route::get('staff/lost-items', [\App\Http\Controllers\Staff\LostItemController::class, 'index'])->name('staff.lost-items.index');
+
+    // [Module 6] 保存验证结果逻辑
+    Route::post('staff/match-verify/save', [\App\Http\Controllers\Staff\LostItemController::class, 'storeMatch'])
+    ->name('staff.match.store');
+
+    Route::post('staff/match/unmatch/{lostId}', [\App\Http\Controllers\Staff\LostItemController::class, 'unmatch'])
+    ->name('staff.match.unmatch');
     
     // 2. 创建页
     Route::get('staff/lost-items/create', [\App\Http\Controllers\Staff\LostItemController::class, 'create'])->name('staff.lost-items.create');
@@ -51,6 +58,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('staff/match-verify/{lost_id}/{found_id}', [\App\Http\Controllers\Staff\LostItemController::class, 'verify'])
         ->name('staff.match.verify');
+    
+    // 修改这一行，把 'create' 改成 'createClaim'
+    Route::get('staff/claims/create', [ClaimController::class, 'createClaim'])->name('staff.claims.create');
+
+    // 这一行保持不变
+    Route::post('staff/claims/store', [ClaimController::class, 'store'])->name('staff.claims.store');
 
 });
 
