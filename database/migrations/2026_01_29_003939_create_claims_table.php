@@ -9,18 +9,21 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
         Schema::create('claims', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('lostId');
             $table->unsignedBigInteger('foundId');
-            $table->string('claimerName'); // 领物人姓名
-            $table->string('claimerIcPassport'); // 领物人证件号
+            $table->unsignedBigInteger('processedBy');
+            $table->string('claimerName');
+            $table->string('claimerIcPassport');
             $table->string('claimerPhone');
-            $table->unsignedBigInteger('processedBy'); // 处理的员工
-            $table->timestamp('claimedAt'); // 认领时间
+            $table->timestamp('claimedAt');
             $table->timestamps();
+
+            $table->foreign('lostId')->references('id')->on('lost_item_reports')->onDelete('cascade');
+            $table->foreign('foundId')->references('id')->on('found_items')->onDelete('cascade');
         });
     }
 

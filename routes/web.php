@@ -4,10 +4,11 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\LogController;
-// [Module 4] Found Items
 use App\Http\Controllers\Staff\FoundItemController;
-// [Module 5] Lost Items (配合你的 Diagram 名字)
 use App\Http\Controllers\Staff\LostItemController;
+
+// 🔥🔥🔥 必须补上这一行！否则系统找不到 ClaimController 会报错 🔥🔥🔥
+use App\Http\Controllers\Staff\ClaimController;
 
 /*
 |--------------------------------------------------------------------------
@@ -64,6 +65,9 @@ Route::middleware('auth')->group(function () {
 
     // 这一行保持不变
     Route::post('staff/claims/store', [ClaimController::class, 'store'])->name('staff.claims.store');
+    // AJAX 检查库位接口
+    Route::get('staff/check-slots', [\App\Http\Controllers\Staff\FoundItemController::class, 'checkOccupiedSlots'])
+    ->name('staff.check-slots');
 
 });
 

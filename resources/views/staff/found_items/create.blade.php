@@ -96,41 +96,74 @@
                             </div>
                         </div>
 
-                        <div id="step3" class="step-section hidden">
-                            <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🔐 Step 3: Storage Assignment (Internal)</h3>
+                        <div id="step3" class="step-section hidden" 
+                             x-data="{
+                                 zone: 'GEN',
+                                 shelf: 'S1',
+                                 slot: '01',
+                                 occupiedList: [],
+                                 
+                                 // 这个函数会自动去后台检查
+                                 checkSlots() {
+                                     if(this.zone && this.shelf) {
+                                         // 你的小助手 API 路径
+                                         fetch(`{{ route('staff.check-slots') }}?zone=${this.zone}&shelf=${this.shelf}`)
+                                             .then(res => res.json())
+                                             .then(data => {
+                                                 this.occupiedList = data;
+                                             })
+                                             .catch(err => console.error(err));
+                                     }
+                                 }
+                             }"
+                             x-init="checkSlots()"> <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🔐 Step 3: Storage Assignment (Internal)</h3>
                             
                             <div class="bg-gray-50 p-6 rounded-md border border-gray-200 mb-6">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 uppercase">Zone</label>
-                                        <select id="storageZone" class="mt-1 block w-full rounded-md border-gray-300 text-sm" onchange="updateStoragePreview()">
+                                        <select name="zone" x-model="zone" @change="checkSlots()" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                                             <option value="GEN">General (GEN)</option>
                                             <option value="VAULT">Vault (High Value)</option>
                                             <option value="BAG">Baggage Room</option>
                                         </select>
                                     </div>
+
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 uppercase">Shelf</label>
-                                        <select id="storageShelf" class="mt-1 block w-full rounded-md border-gray-300 text-sm" onchange="updateStoragePreview()">
+                                        <select name="shelf" x-model="shelf" @change="checkSlots()" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                                             <option value="S1">Shelf 1</option>
                                             <option value="S2">Shelf 2</option>
                                             <option value="S3">Shelf 3</option>
                                         </select>
                                     </div>
+
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 uppercase">Slot</label>
-                                        <select id="storageSlot" class="mt-1 block w-full rounded-md border-gray-300 text-sm" onchange="updateStoragePreview()">
+                                        <select name="slot" x-model="slot" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                                             @for ($i = 1; $i <= 10; $i++)
-                                                <option value="{{ sprintf('%02d', $i) }}">Slot {{ sprintf('%02d', $i) }}</option>
+                                                @php $slotVal = sprintf('%02d', $i); @endphp <option value="{{ $slotVal }}"
+                                                        {{-- 如果 occupiedList 包含这个 Slot (注意格式匹配) --}}
+                                                        x-bind:disabled="occupiedList.includes('{{ $slotVal }}')"
+                                                        {{-- 如果被占用了，文字变色或改名 --}}
+                                                        x-text="occupiedList.includes('{{ $slotVal }}') ? 'Slot {{ $slotVal }} (Occupied)' : 'Slot {{ $slotVal }}'">
+                                                </option>
                                             @endfor
                                         </select>
+                                        <p class="text-[10px] text-gray-500 mt-1" x-show="occupiedList.length > 0">
+                                            🔴 Some slots are currently occupied.
+                                        </p>
                                     </div>
                                 </div>
 
                                 <div class="mt-6 text-center">
                                     <span class="text-xs text-gray-500">Assigned Storage ID:</span>
-                                    <div class="text-2xl font-mono font-bold text-indigo-600 tracking-wider mt-1" id="storagePreview">GEN-S1-01</div>
-                                    <input type="hidden" name="storage_location" id="finalStorageInput" value="GEN-S1-01">
+                                    <div class="text-2xl font-mono font-bold text-indigo-600 tracking-wider mt-1" 
+                                         x-text="`${zone}-${shelf}-${slot}`">
+                                        GEN-S1-01
+                                    </div>
+                                    <input type="hidden" name="storage_location" x-bind:value="`${zone}-${shelf}-${slot}`">
                                 </div>
                             </div>
                             
@@ -180,16 +213,6 @@
             }
         }
 
-        function toggleMultiColor() {
-            const mainColor = document.getElementById('mainColorSelect').value;
-            const optionsDiv = document.getElementById('multiColorOptions');
-            if (mainColor === 'Multi-color') {
-                optionsDiv.classList.remove('hidden');
-            } else {
-                optionsDiv.classList.add('hidden');
-            }
-        }
-
         function toggleFlightInput() {
             const location = document.getElementById('locationSelect').value;
             const flightDiv = document.getElementById('flightInputDiv');
@@ -199,16 +222,5 @@
                 flightDiv.classList.add('hidden');
             }
         }
-
-        function updateStoragePreview() {
-            const zone = document.getElementById('storageZone').value;
-            const shelf = document.getElementById('storageShelf').value;
-            const slot = document.getElementById('storageSlot').value;
-            const finalID = `${zone}-${shelf}-${slot}`;
-            document.getElementById('storagePreview').innerText = finalID;
-            document.getElementById('finalStorageInput').value = finalID;
-        }
-
-        updateStoragePreview();
     </script>
 </x-app-layout>
