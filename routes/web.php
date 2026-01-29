@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Staff\FoundItemController;
 use App\Http\Controllers\Staff\LostItemController;
+use App\Http\Controllers\PickupController; // 👈 记得加这行在文件最顶端！
 
 // 🔥🔥🔥 必须补上这一行！否则系统找不到 ClaimController 会报错 🔥🔥🔥
 use App\Http\Controllers\Staff\ClaimController;
@@ -68,6 +69,12 @@ Route::middleware('auth')->group(function () {
     // AJAX 检查库位接口
     Route::get('staff/check-slots', [\App\Http\Controllers\Staff\FoundItemController::class, 'checkOccupiedSlots'])
     ->name('staff.check-slots');
+    // 显示历史记录列表 (Audit Log)
+    Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
+    // 保存预约时间的路由 (就是这一行漏了！)
+    Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
+    Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
+    Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
 });
 
