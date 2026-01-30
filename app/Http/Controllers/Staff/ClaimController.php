@@ -9,7 +9,11 @@ use App\Models\FoundItem;
 use App\Models\MatchRecord;
 use App\Models\Claim;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str; // 必须引入，用于生成 SMS 验证码
+use Illuminate\Support\Str;
+
+// 👇👇👇 必须加上这两行！！ 👇👇👇
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AppointmentConfirmation;
 
 class ClaimController extends Controller
 {
@@ -37,6 +41,7 @@ class ClaimController extends Controller
     // 2. 保存预约时间 (新功能 - Step 1)
     public function schedule(Request $request)
     {
+        // 1. 验证输入
         $request->validate([
             'match_id' => 'required',
             'appointment_date' => 'required|date|after:now', // 必须是未来日期
@@ -45,21 +50,33 @@ class ClaimController extends Controller
 
         $match = MatchRecord::findOrFail($request->match_id);
 
-        // 合并日期和时间
+        // 2. 合并日期和时间
         $fullDateTime = $request->appointment_date . ' ' . $request->appointment_time;
 
-        // 生成 6 位随机 Token (用于模拟 SMS 链接)
+        // 3. 生成 6 位随机 Token
         $token = strtoupper(Str::random(6));
 
+        // 4. 更新数据库
         $match->update([
             'appointment_at' => $fullDateTime,
             'verification_token' => $token,
             'is_confirmed' => false, // 重置确认状态
         ]);
 
-        return back()->with('success', 'Appointment scheduled successfully! SMS notification simulated.');
-    }
+        // 🔥🔥🔥 5. 发送真实邮件 (新增部分) 🔥🔥🔥
+        
+        // 生成给用户点击的链接 (会自动带上你的 IP)
+        $link = route('pickup.confirm', ['token' => $token]);
+        
+        // 👇 这里填你手机上能收到的邮箱 (为了测试先发给你自己)
+        $passengerEmail = 'chiabx-wp22@student.tarc.edu.my'; 
+        
+        // 发送动作
+        Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $link));
 
+        // 6. 返回成功信息
+        return back()->with('success', 'Appointment set! Email sent to ' . $passengerEmail);
+    }
     // 3. 最终交接 (核心逻辑 - Step 2)
     public function store(Request $request)
     {

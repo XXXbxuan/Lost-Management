@@ -73,11 +73,10 @@ Route::middleware('auth')->group(function () {
     Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
     // 保存预约时间的路由 (就是这一行漏了！)
     Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
-    Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
-    Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
-
+    
 });
-
+Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
+Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 // ====================================================
 // 只有管理员 (Admin) 可以访问的路由
 // ====================================================
