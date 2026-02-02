@@ -24,33 +24,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // 1. 验证账号密码
+        // 1. Authenticate the user (Checks email & password automatically)
         $request->authenticate();
 
-        // 2. 生成 Session
+        // 2. Regenerate session ID (Security practice)
         $request->session()->regenerate();
 
-        // ==================================================
-        // [新增] 检查是否被封禁 (Block Check)
-        // ==================================================
-        $user = $request->user(); // 获取当前登录用户
+        // 3. Redirect Logic
+        $user = Auth::user();
 
-        // 如果找到了对应的 Staff 档案，且状态是 Blocked
-        if ($user->staff && $user->staff->status === 'Blocked') {
-            
-            // 马上强制登出
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            // 抛出错误信息，不让他进，并提示联系管理员
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'email' => 'Your account has been blocked. Please contact the administrator.',
-            ]);
+        // If you have roles, you can redirect them specifically here
+        if ($user->role === 'admin' || $user->role === 'staff') {
+             // Make sure this route exists in your web.php
+             return redirect()->route('staff.dashboard'); 
         }
-        // ==================================================
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Standard Users go to the Dashboard
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
