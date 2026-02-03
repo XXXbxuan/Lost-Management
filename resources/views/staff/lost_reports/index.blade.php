@@ -17,6 +17,7 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
                 <div class="p-6 text-gray-900">
                     
+                    {{-- 顶部标题和按钮 --}}
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-lg font-bold text-gray-700">All Lost Reports</h3>
                         
@@ -26,6 +27,25 @@
                         </a>
                     </div>
 
+                    {{-- 🔥🔥🔥 状态筛选 Tabs (已修复注释报错) 🔥🔥🔥 --}}
+                    <div class="flex flex-wrap gap-2 mb-6 border-b pb-4">
+                        @php
+                            $filters = ['All', 'LOST', 'Matched', 'Claimed'];
+                        @endphp
+
+                        @foreach($filters as $filter)
+                            <a href="{{ route('staff.lost-items.index', ['status' => $filter]) }}"
+                               class="px-5 py-2 rounded-full text-xs font-bold border transition duration-200 no-underline shadow-sm
+                               {{ ($status ?? 'All') === $filter 
+                                   ? 'bg-red-600 text-white border-red-600'
+                                   : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                               }}">
+                               {{ $filter === 'LOST' ? 'Lost (Unsolved)' : $filter }}
+                            </a>
+                        @endforeach
+                    </div>
+
+                    {{-- 表格内容 --}}
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white border-collapse">
                             <thead>
@@ -128,7 +148,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="6" class="py-10 text-center text-gray-400 italic">
-                                            No lost reports found. Click "+ Create Lost Report" to get started.
+                                            No lost reports found in this category. 
                                         </td>
                                     </tr>
                                 @endforelse
@@ -137,7 +157,7 @@
                     </div>
 
                     <div class="mt-6">
-                        {{ $lostReports->links() }}
+                        {{ $lostReports->appends(['status' => $status ?? 'All'])->links() }}
                     </div>
 
                 </div>

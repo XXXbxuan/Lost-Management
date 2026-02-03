@@ -7,14 +7,29 @@ use App\Models\LostItemReport;
 use Illuminate\Http\Request;
 use App\Models\FoundItem;
 use App\Models\MatchRecord;
-// ❌ 删除了 use Auth;
+// 👇 1. 引入 Log 模型
+use App\Models\AdminActionLog;
 
 class LostItemController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $lostReports = LostItemReport::latest()->paginate(10);
-        return view('staff.lost_reports.index', compact('lostReports'));
+        // 1. 获取状态 (默认为 All)
+        $status = $request->query('status', 'All');
+
+        // 2. 建立查询
+        $query = LostItemReport::latest();
+
+        // 3. 过滤 (注意：这里用 'LOST' 而不是 'Unclaimed')
+        if ($status !== 'All') {
+            $query->where('status', $status);
+        }
+
+        // 4. 获取结果
+        $lostReports = $query->paginate(10);
+
+        // 5. 传回视图
+        return view('staff.lost_reports.index', compact('lostReports', 'status'));
     }
 
     public function create()
@@ -52,7 +67,16 @@ class LostItemController extends Controller
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
-        LostItemReport::create($validated);
+        // 👇 修改：赋值给变量，以便拿 ID 写 Log
+        $report = LostItemReport::create($validated);
+
+        // ✅ [LOG 1] 记录创建报失单
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?? 'Staff', 
+            'action_type' => 'CREATE_LOST_REPORT',
+            'target_name' => "Report #{$report->id}",
+            'details'     => "Passenger: {$report->passenger_name}, Item: {$report->item_name} ({$report->category})."
+        ]);
 
         return redirect()->route('dashboard')->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
     }
@@ -104,16 +128,13 @@ class LostItemController extends Controller
             $score = 0;
             // A: Category
             if ($item->category == $lostReport->category) $score += 40;
-            
             // B: Color
             if (str_contains(strtolower($item->color), strtolower($lostReport->color)) || 
                 str_contains(strtolower($lostReport->color), strtolower($item->color))) {
                 $score += 30;
             }
-            
             // C: Location
             if ($item->found_location == $lostReport->lost_location) $score += 20;
-
             // D: Keyword
             if (str_contains(strtolower($item->item_name), strtolower($lostReport->item_name))) $score += 10;
 
@@ -136,9 +157,7 @@ class LostItemController extends Controller
     {
         $lostReport = LostItemReport::findOrFail($lost_id);
         $foundItem = FoundItem::findOrFail($found_id);
-
         $score = $request->query('score', 0); 
-
         return view('staff.lost_reports.verify', compact('lostReport', 'foundItem', 'score'));
     }
 
@@ -157,12 +176,18 @@ class LostItemController extends Controller
             'foundId' => $request->found_id,
             'notes' => $request->notes,
             'status' => $request->outcome == 'matched' ? 'Verified' : 'Rejected',
-            
-            // ✅ 改回 auth()->id()
             'verifiedBy' => auth()->id(),
-            
             'verifiedAt' => now(),
             'similarityScore' => $request->similarity_score, 
+        ]);
+
+        // ✅ [LOG 2] 记录验证匹配 (Verify Match)
+        $action = $request->outcome == 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'action_type' => $action,
+            'target_name' => "Lost #{$request->lost_id} vs Found #{$request->found_id}",
+            'details'     => "Result: " . ucfirst($request->outcome) . ", Score: {$request->similarity_score}%. Note: {$request->notes}"
         ]);
 
         if ($request->outcome == 'matched') {
@@ -178,6 +203,15 @@ class LostItemController extends Controller
         $match = MatchRecord::where('lostId', $lostId)->first();
         
         if ($match) {
+            // ✅ [LOG 3] 记录撤销匹配 (Undo Match)
+            // 必须在 delete() 之前记录，否则数据就没了
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name ?? 'Staff',
+                'action_type' => 'UNDO_MATCH',
+                'target_name' => "Match Record #{$match->id}",
+                'details'     => "Action: Unlinked Lost Item #{$match->lostId} from Found Item #{$match->foundId}. Status reset."
+            ]);
+
             FoundItem::where('id', $match->foundId)->update(['status' => 'Unclaimed']);
             LostItemReport::where('id', $lostId)->update(['status' => 'LOST']);
             $match->delete();
@@ -189,7 +223,6 @@ class LostItemController extends Controller
     public function getTimelineHtml($id)
     {
         $lostReport = LostItemReport::findOrFail($id);
-        
         $match = MatchRecord::where('lostId', $lostReport->id)
                     ->where('status', 'Verified')
                     ->first();
@@ -197,9 +230,7 @@ class LostItemController extends Controller
         if (!$match || !$match->foundItem) {
             return '<div class="p-6 text-center text-gray-500">No verified timeline data available.</div>';
         }
-
         $foundItem = $match->foundItem;
-
         return view('staff.claims.partials.timeline', compact('foundItem', 'match'))->render();
     }
 }

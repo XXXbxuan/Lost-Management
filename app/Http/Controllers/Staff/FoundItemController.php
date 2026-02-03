@@ -17,11 +17,24 @@ class FoundItemController extends Controller
         $this->foundItemService = $foundItemService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        // 显示所有 Found Items
-        $foundItems = FoundItem::latest()->paginate(10);
-        return view('staff.found_items.index', compact('foundItems'));
+        // 1. 获取当前选中的状态，默认为 'All'
+        $status = $request->query('status', 'All');
+
+        // 2. 建立查询
+        $query = FoundItem::latest();
+
+        // 3. 如果选的不是 All，就过滤数据库
+        if ($status !== 'All') {
+            $query->where('status', $status);
+        }
+
+        // 4. 获取结果
+        $foundItems = $query->paginate(10);
+
+        // 5. 把 $status 传回给页面（为了让按钮高亮）
+        return view('staff.found_items.index', compact('foundItems', 'status'));
     }
 
     public function create()

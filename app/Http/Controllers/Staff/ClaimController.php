@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AppointmentConfirmation;
+// 👇 1. 引入 Log 模型
+use App\Models\AdminActionLog;
 
 class ClaimController extends Controller
 {
@@ -51,8 +53,25 @@ class ClaimController extends Controller
         try {
             Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $link));
             $message = 'Appointment set! Email sent to ' . $passengerEmail;
+            
+            // ✅ [LOG 4] 记录发送预约 (Send Appointment)
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name ?? 'Staff',
+                'action_type' => 'SEND_APPOINTMENT',
+                'target_name' => "Passenger Email: " . $passengerEmail,
+                'details'     => "Scheduled: {$fullDateTime}. Token generated. Email sent successfully."
+            ]);
+
         } catch (\Exception $e) {
             $message = 'Appointment set, but email failed to send: ' . $e->getMessage();
+            
+            // 记录失败日志 (可选)
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name ?? 'Staff',
+                'action_type' => 'APPOINTMENT_EMAIL_FAIL',
+                'target_name' => $passengerEmail,
+                'details'     => "Error: " . $e->getMessage()
+            ]);
         }
 
         return back()->with('success', $message);
@@ -83,16 +102,21 @@ class ClaimController extends Controller
                 'claimerName' => $request->claimerName,
                 'claimerIcPassport' => $request->claimerIcPassport,
                 'claimerPhone' => $request->claimerPhone,
-                
-                // ✅ 改回 auth()->id()
-                // 意思：获取当前登录用户的 ID
                 'processedBy' => auth()->id(), 
-                
                 'claimedAt' => now(),
             ]);
 
             LostItemReport::where('id', $request->lostId)->update(['status' => 'Claimed']);
             FoundItem::where('id', $request->foundId)->update(['status' => 'Claimed']);
+
+            // ✅ [LOG 5] 记录物品归还 (Item Handover)
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name ?? 'Staff',
+                'action_type' => 'ITEM_HANDOVER',
+                'target_name' => "Claimer: " . $request->claimerName,
+                'details'     => "Handed over Found Item #{$request->foundId} (matched to Lost Report #{$request->lostId}). " .
+                                 "ID: {$request->claimerIcPassport}, Phone: {$request->claimerPhone}."
+            ]);
         });
 
         return redirect()->route('staff.lost-items.index')
