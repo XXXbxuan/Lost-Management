@@ -110,7 +110,7 @@
                         @csrf
                         <input type="hidden" name="lost_id" value="{{ $lostReport->id }}">
                         <input type="hidden" name="found_id" value="{{ $foundItem->id }}">
-                        <input type="hidden" name="similarity_score" value="80">
+                        <input type="hidden" name="similarity_score" value="{{ $score }}">
 
                         <div class="mb-6" x-data="{ selection: 'matched' }">
                             <span class="block text-sm font-bold text-gray-700 mb-2">Outcome</span>

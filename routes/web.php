@@ -73,7 +73,8 @@ Route::middleware('auth')->group(function () {
     Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
     // 保存预约时间的路由 (就是这一行漏了！)
     Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
-    
+    Route::get('/claims/{id}/timeline-html', [App\Http\Controllers\Staff\ClaimController::class, 'getTimelineHtml'])
+    ->name('staff.claims.timeline_html');
 });
 Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
 Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');

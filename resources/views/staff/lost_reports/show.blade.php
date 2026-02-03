@@ -125,19 +125,19 @@
                                         <div class="mt-3">
                                             <div class="flex justify-between text-[9px] font-black mb-1 uppercase">
                                                 <span class="text-gray-400">Match Score</span>
-                                                <span class="{{ $found->similarity_score >= 80 ? 'text-green-600' : 'text-yellow-600' }}">
-                                                    {{ $found->similarity_score }}%
+                                                <span class="{{ ($found->similarity_score ?? 0) >= 80 ? 'text-green-600' : 'text-yellow-600' }}">
+                                                    {{ number_format($found->similarity_score ?? 0, 0) }}%
                                                 </span>
                                             </div>
                                             <div class="w-full bg-gray-100 rounded-full h-1.5 border border-gray-50">
-                                                <div class="h-1.5 rounded-full {{ $found->similarity_score >= 80 ? 'bg-green-500' : 'bg-yellow-500' }} shadow-inner" 
-                                                     style="width: {{ $found->similarity_score }}%"></div>
+                                                <div class="h-1.5 rounded-full {{ ($found->similarity_score ?? 0) >= 80 ? 'bg-green-500' : 'bg-yellow-500' }} shadow-inner" 
+                                                     style="width: {{ $found->similarity_score ?? 0 }}%"></div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <a href="{{ route('staff.match.verify', ['lost_id' => $lostReport->id, 'found_id' => $found->id]) }}" 
-                                       class="block w-full text-center py-2 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-black text-[10px] border-t transition-colors uppercase tracking-widest">
+                                    <a href="{{ route('staff.match.verify', ['lost_id' => $lostReport->id, 'found_id' => $found->id, 'score' => $found->similarity_score]) }}" 
+                                       class="w-full bg-blue-50 text-blue-600 font-bold py-2 rounded-md hover:bg-blue-100 transition text-xs uppercase tracking-wider block text-center no-underline border border-blue-200">
                                         Verify Match
                                     </a>
                                 </div>
@@ -170,7 +170,8 @@
                         </div>
                     @endif
 
-                </div> </div>
+                </div> 
+            </div>
         </div>
     </div>
 </x-app-layout>
