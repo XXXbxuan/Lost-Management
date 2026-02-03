@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
+// --- NEW IMPORTS FOR GOOGLE LOGIN ---
+use Laravel\Socialite\Facades\Socialite;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
 class AuthenticatedSessionController extends Controller
 {
     /**
@@ -20,26 +26,19 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Handle an incoming authentication request (Standard Login).
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // 1. Authenticate the user (Checks email & password automatically)
         $request->authenticate();
-
-        // 2. Regenerate session ID (Security practice)
         $request->session()->regenerate();
 
-        // 3. Redirect Logic
         $user = Auth::user();
 
-        // If you have roles, you can redirect them specifically here
-        if ($user->role === 'admin' || $user->role === 'staff') {
-             // Make sure this route exists in your web.php
+        if ($user->role === 'Admin' || $user->role === 'Staff') { // Check Capitalization of Roles
              return redirect()->route('staff.dashboard'); 
         }
 
-        // Standard Users go to the Dashboard
         return redirect()->intended(route('dashboard'));
     }
 
@@ -49,11 +48,54 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
-
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
-
         return redirect('/');
+    }
+
+    // ==========================================
+    //  GOOGLE LOGIN FUNCTIONS
+    // ==========================================
+
+    // 1. Send user to Google
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    // 2. Handle Google Response
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+
+            // Check if user exists (by email)
+            $user = User::where('email', $googleUser->getEmail())->first();
+
+            if (!$user) {
+                // If user doesn't exist, create a new Passenger account
+                $user = User::create([
+                    'username' => $googleUser->getName(), // Use Google Name
+                    'name'     => $googleUser->getName(), 
+                    'email'    => $googleUser->getEmail(),
+                    'password' => Hash::make(Str::random(16)), // Random secure password
+                    'role'     => 'Passenger',
+                    'points'   => 0,
+                ]);
+            }
+
+            // Log the user in
+            Auth::login($user);
+
+            // Redirect logic (Same as store method)
+            if ($user->role === 'Admin' || $user->role === 'Staff') {
+                return redirect()->route('staff.dashboard');
+            }
+
+            return redirect()->intended(route('dashboard'));
+
+        } catch (\Exception $e) {
+            return redirect()->route('login')->withErrors(['email' => 'Google Login Failed.']);
+        }
     }
 }
