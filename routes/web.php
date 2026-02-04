@@ -7,10 +7,9 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Staff\FoundItemController;
 use App\Http\Controllers\Staff\LostItemController;
 use App\Http\Controllers\Staff\ClaimController;
+use App\Http\Controllers\Staff\VoucherController; // 🟢 ADDED THIS
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\Passenger\DashboardController;
-
-// 🟢 NEW: Import the Auth Controller so Google Login works
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
 /*
@@ -24,15 +23,18 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// 2. Dashboard (User Main Menu)
+// 2. Dashboard (Passenger / User Main Menu)
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Staff Dashboard Route
+Route::get('/staff/dashboard', function () {
+    return view('dashboard'); 
+})->middleware(['auth', 'verified'])->name('staff.dashboard');
 
-// ====================================================
-// 🟢 NEW: GOOGLE LOGIN ROUTES
-// ====================================================
+
+// Google Login Routes
 Route::get('auth/google', [AuthenticatedSessionController::class, 'redirectToGoogle'])->name('google.login');
 Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'handleGoogleCallback']);
 
@@ -49,7 +51,9 @@ Route::middleware('auth')->group(function () {
     // [Passenger Side]
     Route::prefix('passenger')->name('passenger.')->group(function () {
         Route::get('/report', [DashboardController::class, 'showReportForm'])->name('report');
+        Route::get('/found-items', [DashboardController::class, 'showFoundItems'])->name('found_items');
         Route::get('/rewards', [DashboardController::class, 'showRewards'])->name('rewards');
+        Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
     });
 
     // [Staff Side]
@@ -76,6 +80,11 @@ Route::middleware('auth')->group(function () {
     Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
     Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
 
+    // 🟢 NEW: Staff Voucher Management
+    Route::get('staff/vouchers', [VoucherController::class, 'index'])->name('staff.vouchers.index');
+    Route::post('staff/vouchers', [VoucherController::class, 'store'])->name('staff.vouchers.store');
+    Route::delete('staff/vouchers/{id}', [VoucherController::class, 'destroy'])->name('staff.vouchers.destroy');
+
     // Helpers
     Route::get('staff/check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('staff.check-slots');
 });
@@ -84,9 +93,7 @@ Route::middleware('auth')->group(function () {
 Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
 Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
-// ====================================================
 // Admin Only Routes
-// ====================================================
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->name('admin.')
