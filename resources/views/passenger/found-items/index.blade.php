@@ -22,6 +22,8 @@
                                 <th class="py-3 px-6 text-left">Item Details</th>
                                 <th class="py-3 px-6 text-left">Found Location</th>
                                 <th class="py-3 px-6 text-center">Date Found</th>
+                                {{-- 🟢 NEW: Status Column Header --}}
+                                <th class="py-3 px-6 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody class="text-gray-600 text-sm font-light">
@@ -45,12 +47,30 @@
                                         <div>{{ $item->found_location }}</div>
                                     </td>
                                     <td class="py-3 px-6 text-center">
-                                        {{ $item->found_time }}
+                                        {{ $item->created_at->format('d M Y') }}
+                                    </td>
+                                    
+                                    {{-- 🟢 NEW: Status Badge Logic --}}
+                                    <td class="py-3 px-6 text-center">
+                                        @if($item->status == 'Claimed')
+                                            <span class="bg-red-100 text-red-700 py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                Claimed
+                                            </span>
+                                        @elseif($item->status == 'Matched')
+                                            <span class="bg-blue-100 text-blue-700 py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                Processing
+                                            </span>
+                                        @else
+                                            {{-- Default for 'Found', 'Unclaimed', 'In Storage' --}}
+                                            <span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                Available
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="py-6 text-center text-gray-500">No items found yet.</td>
+                                    <td colspan="5" class="py-6 text-center text-gray-500">No items found yet.</td>
                                 </tr>
                             @endforelse
                         </tbody>
