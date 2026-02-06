@@ -7,10 +7,12 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Staff\FoundItemController;
 use App\Http\Controllers\Staff\LostItemController;
 use App\Http\Controllers\Staff\ClaimController;
-use App\Http\Controllers\Staff\VoucherController; // 🟢 ADDED THIS
+use App\Http\Controllers\Staff\VoucherController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\Passenger\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+// 🟢 NEW: Import the OTP Controller
+use App\Http\Controllers\Auth\OTPPasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +56,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/found-items', [DashboardController::class, 'showFoundItems'])->name('found_items');
         Route::get('/rewards', [DashboardController::class, 'showRewards'])->name('rewards');
         Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
+        
+        // My Reports History
+        Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
     });
 
     // [Staff Side]
@@ -80,7 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
     Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
 
-    // 🟢 NEW: Staff Voucher Management
+    // Staff Voucher Management
     Route::get('staff/vouchers', [VoucherController::class, 'index'])->name('staff.vouchers.index');
     Route::post('staff/vouchers', [VoucherController::class, 'store'])->name('staff.vouchers.store');
     Route::delete('staff/vouchers/{id}', [VoucherController::class, 'destroy'])->name('staff.vouchers.destroy');
@@ -102,4 +107,19 @@ Route::middleware(['auth', 'admin'])
         Route::get('logs', [LogController::class, 'index'])->name('logs.index');
     });
 
+// Load Default Auth Routes (Login, Register, etc.)
 require __DIR__.'/auth.php';
+
+// ====================================================
+// 🟢 CUSTOM OTP PASSWORD RESET ROUTES
+// (Placed after auth.php to override defaults)
+// ====================================================
+Route::middleware('guest')->group(function () {
+    // 1. Request Code Page
+    Route::get('forgot-password', [OTPPasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('forgot-password', [OTPPasswordResetController::class, 'sendResetCode'])->name('password.email');
+
+    // 2. Enter Code & Reset Page
+    Route::get('reset-password-verify', [OTPPasswordResetController::class, 'showResetForm'])->name('password.verify');
+    Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
+});

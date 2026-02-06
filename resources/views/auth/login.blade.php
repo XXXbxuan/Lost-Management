@@ -1,4 +1,8 @@
 <x-guest-layout>
+    {{-- SESSION STATUS --}}
+    <x-auth-session-status class="mb-4" :status="session('status')" />
+
+    {{-- ROLE TOGGLE BUTTONS --}}
     <div class="mb-6 flex justify-center p-1 bg-gray-100 rounded-lg">
         <button type="button" onclick="setRole('Passenger')" id="btn-passenger" 
                 class="flex-1 py-2 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all">
@@ -15,33 +19,42 @@
 
         <input type="hidden" name="login_role" id="login_role" value="Passenger">
 
+        {{-- EMAIL --}}
         <div>
             <x-input-label for="email" :value="__('Email')" />
             <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
+        {{-- PASSWORD --}}
         <div class="mt-4">
             <x-input-label for="password" :value="__('Password')" />
             <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
+        {{-- BOTTOM LINKS & BUTTON --}}
         <div class="flex items-center justify-between mt-4">
+            {{-- Register Link (Hidden for Staff) --}}
             <div id="register-link-container">
                 <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('register') }}">
-                    {{ __('New Passenger? Register here') }}
+                    {{ __('Register here') }}
                 </a>
             </div>
 
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
+            <div class="flex items-center">
+                {{-- 🟢 Forgot Password Link (Added ID to toggle visibility) --}}
+                <a id="forgot-password-link" class="underline text-sm text-gray-600 hover:text-gray-900 mr-4" href="{{ route('password.request') }}">
+                    {{ __('Forgot password?') }}
+                </a>
+
+                <x-primary-button class="ms-3">
+                    {{ __('Log in') }}
+                </x-primary-button>
+            </div>
         </div>
 
-        {{-- ========================================== --}}
-        {{--       GOOGLE LOGIN BUTTON SECTION          --}}
-        {{-- ========================================== --}}
+        {{-- GOOGLE LOGIN (Hidden for Staff) --}}
         <div class="mt-6" id="google-login-container">
             <div class="relative">
                 <div class="absolute inset-0 flex items-center">
@@ -61,7 +74,6 @@
                 </a>
             </div>
         </div>
-        {{-- ========================================== --}}
 
     </form>
 
@@ -80,9 +92,18 @@
                 : 'flex-1 py-2 rounded-md text-gray-500 transition-all';
             
             // 2. Hide "Register" link for Staff
-            document.getElementById('register-link-container').style.display = isPassenger ? 'block' : 'none';
+            const registerLink = document.getElementById('register-link-container');
+            if (registerLink) {
+                registerLink.style.display = isPassenger ? 'block' : 'none';
+            }
 
-            // 3. Hide "Google Login" for Staff (NEW ADDITION)
+            // 3. Hide "Forgot Password" link for Staff (🟢 NEW LOGIC)
+            const forgotPasswordLink = document.getElementById('forgot-password-link');
+            if (forgotPasswordLink) {
+                forgotPasswordLink.style.display = isPassenger ? 'inline' : 'none';
+            }
+
+            // 4. Hide "Google Login" for Staff
             const googleContainer = document.getElementById('google-login-container');
             if (googleContainer) {
                 googleContainer.style.display = isPassenger ? 'block' : 'none';

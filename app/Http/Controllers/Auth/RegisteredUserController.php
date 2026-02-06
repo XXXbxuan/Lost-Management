@@ -21,26 +21,29 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        // 1. Validate Input (Removed Security Question lines)
+        // 1. Validate 'username' instead of 'name'
         $request->validate([
-            'username' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:'.User::class], // 🟢 Check username
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // 2. Create User (Fixed 'name' -> 'username' issue here too)
+        // 2. Create User using 'username'
         $user = User::create([
-            'username' => $request->username, // Fixed: Matches your DB column 'username'
+            'username' => $request->username, // 🟢 Save username
+            'name' => null,                   // Name is optional now
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'Passenger',
-            // Removed Security Question & Answer lines
+            'role' => 'Passenger',            // Default role
+            'points' => 0,                    // Default points
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
+        // 3. Do NOT login automatically (as requested previously)
+        // Auth::login($user);
 
-        return redirect(route('dashboard'));
+        // 4. Redirect to Login
+        return redirect()->route('login')->with('status', 'Registration successful! Please log in.');
     }
 }

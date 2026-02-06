@@ -32,15 +32,11 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
+        // 1. Check Email & Password
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
@@ -48,6 +44,29 @@ class LoginRequest extends FormRequest
                 'email' => trans('auth.failed'),
             ]);
         }
+
+        // ============================================================
+        // 🟢 NEW: ROLE VALIDATION (Your Second Instruction)
+        // ============================================================
+        $user = Auth::user();
+        $selectedRole = $this->input('login_role'); // Gets 'Passenger' or 'Staff' from the form
+
+        // Case A: User selected "Passenger" tab, but is actually Staff/Admin
+        if ($selectedRole === 'Passenger' && $user->role !== 'Passenger') {
+            Auth::logout(); // Kick them out
+            throw ValidationException::withMessages([
+                'email' => 'This is a Staff account. Please switch to the Staff login tab.',
+            ]);
+        }
+
+        // Case B: User selected "Staff" tab, but is actually a Passenger
+        if ($selectedRole === 'Staff' && ($user->role !== 'Staff' && $user->role !== 'Admin')) {
+            Auth::logout(); // Kick them out
+            throw ValidationException::withMessages([
+                'email' => 'Access Denied. Passengers cannot log in via the Staff portal.',
+            ]);
+        }
+        // ============================================================
 
         RateLimiter::clear($this->throttleKey());
     }
