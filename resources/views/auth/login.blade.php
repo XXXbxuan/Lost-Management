@@ -2,11 +2,11 @@
     <div class="mb-6 flex justify-center p-1 bg-gray-100 rounded-lg">
         <button type="button" onclick="setRole('Passenger')" id="btn-passenger" 
                 class="flex-1 py-2 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all">
-            Passenger (乘客)
+            Passenger
         </button>
         <button type="button" onclick="setRole('Staff')" id="btn-staff" 
                 class="flex-1 py-2 rounded-md text-gray-500 transition-all">
-            Staff / Admin (员工)
+            Staff / Admin
         </button>
     </div>
 
