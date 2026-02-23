@@ -1,15 +1,18 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Staff\FoundItemController;
 use App\Http\Controllers\Staff\LostItemController;
-use App\Http\Controllers\PickupController; // 👈 记得加这行在文件最顶端！
-
-// 🔥🔥🔥 必须补上这一行！否则系统找不到 ClaimController 会报错 🔥🔥🔥
 use App\Http\Controllers\Staff\ClaimController;
+use App\Http\Controllers\Staff\VoucherController;
+use App\Http\Controllers\PickupController;
+use App\Http\Controllers\Passenger\DashboardController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+// 🟢 NEW: Import the OTP Controller
+use App\Http\Controllers\Auth\OTPPasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,81 +20,108 @@ use App\Http\Controllers\Staff\ClaimController;
 |--------------------------------------------------------------------------
 */
 
+// 1. Home Page Logic
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
 
+// 2. Dashboard (Passenger / User Main Menu)
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Staff Dashboard Route
+Route::get('/staff/dashboard', function () {
+    return view('dashboard'); 
+})->middleware(['auth', 'verified'])->name('staff.dashboard');
+
+
+// Google Login Routes
+Route::get('auth/google', [AuthenticatedSessionController::class, 'redirectToGoogle'])->name('google.login');
+Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'handleGoogleCallback']);
+
+
 // ====================================================
-// 普通登录用户 (Staff & Admin) 都可以访问的路由
+// Protected Routes (Logged In Users)
 // ====================================================
 Route::middleware('auth')->group(function () {
-    // 个人资料 (Profile)
+    // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // [Module 4] Found Items (拾获物品管理 - Staff Side)
-    // 对应: FoundItemController
+    // [Passenger Side]
+    Route::prefix('passenger')->name('passenger.')->group(function () {
+        Route::get('/report', [DashboardController::class, 'showReportForm'])->name('report');
+        Route::get('/found-items', [DashboardController::class, 'showFoundItems'])->name('found_items');
+        Route::get('/rewards', [DashboardController::class, 'showRewards'])->name('rewards');
+        Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
+        
+        // My Reports History
+        Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
+    });
+
+    // [Staff Side]
+    
+    // Found Items
     Route::get('staff/found-items', [FoundItemController::class, 'index'])->name('staff.found-items.index');
     Route::get('staff/found-items/create', [FoundItemController::class, 'create'])->name('staff.found-items.create');
     Route::post('staff/found-items', [FoundItemController::class, 'store'])->name('staff.found-items.store');
 
-    // [Module 5] Passenger Lost Items (乘客报失单 - Staff Side)
-    // 对应: LostItemController (为了匹配 Diagram)
-    Route::get('staff/lost-items', [\App\Http\Controllers\Staff\LostItemController::class, 'index'])->name('staff.lost-items.index');
+    // Lost Items
+    Route::get('staff/lost-items', [LostItemController::class, 'index'])->name('staff.lost-items.index');
+    Route::get('staff/lost-items/create', [LostItemController::class, 'create'])->name('staff.lost-items.create');
+    Route::post('staff/lost-items', [LostItemController::class, 'store'])->name('staff.lost-items.store');
+    Route::get('staff/lost-items/{id}', [LostItemController::class, 'show'])->name('staff.lost-items.show');
 
-    // [Module 6] 保存验证结果逻辑
-    Route::post('staff/match-verify/save', [\App\Http\Controllers\Staff\LostItemController::class, 'storeMatch'])
-    ->name('staff.match.store');
-
-    Route::post('staff/match/unmatch/{lostId}', [\App\Http\Controllers\Staff\LostItemController::class, 'unmatch'])
-    ->name('staff.match.unmatch');
+    // Matching & Verification
+    Route::get('staff/match-verify/{lost_id}/{found_id}', [LostItemController::class, 'verify'])->name('staff.match.verify');
+    Route::post('staff/match-verify/save', [LostItemController::class, 'storeMatch'])->name('staff.match.store');
+    Route::post('staff/match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('staff.match.unmatch');
     
-    // 2. 创建页
-    Route::get('staff/lost-items/create', [\App\Http\Controllers\Staff\LostItemController::class, 'create'])->name('staff.lost-items.create');
-    Route::post('staff/lost-items', [\App\Http\Controllers\Staff\LostItemController::class, 'store'])->name('staff.lost-items.store');
-
-    // 🔥 [新增] 3. 匹配详情页 (这一行就是报错缺少的！)
-    Route::get('staff/lost-items/{id}', [\App\Http\Controllers\Staff\LostItemController::class, 'show'])->name('staff.lost-items.show');
-
-    Route::get('staff/match-verify/{lost_id}/{found_id}', [\App\Http\Controllers\Staff\LostItemController::class, 'verify'])
-        ->name('staff.match.verify');
-    
-    // 修改这一行，把 'create' 改成 'createClaim'
+    // Claims
     Route::get('staff/claims/create', [ClaimController::class, 'createClaim'])->name('staff.claims.create');
-
-    // 这一行保持不变
     Route::post('staff/claims/store', [ClaimController::class, 'store'])->name('staff.claims.store');
-    // AJAX 检查库位接口
-    Route::get('staff/check-slots', [\App\Http\Controllers\Staff\FoundItemController::class, 'checkOccupiedSlots'])
-    ->name('staff.check-slots');
-    // 显示历史记录列表 (Audit Log)
     Route::get('staff/claims-history', [ClaimController::class, 'index'])->name('staff.claims.index');
-    // 保存预约时间的路由 (就是这一行漏了！)
     Route::post('staff/claims/schedule', [ClaimController::class, 'schedule'])->name('staff.claims.schedule');
     Route::get('/claims/{id}/timeline-html', [App\Http\Controllers\Staff\ClaimController::class, 'getTimelineHtml'])
     ->name('staff.claims.timeline_html');
+
+    // Staff Voucher Management
+    Route::get('staff/vouchers', [VoucherController::class, 'index'])->name('staff.vouchers.index');
+    Route::post('staff/vouchers', [VoucherController::class, 'store'])->name('staff.vouchers.store');
+    Route::delete('staff/vouchers/{id}', [VoucherController::class, 'destroy'])->name('staff.vouchers.destroy');
+
+    // Helpers
+    Route::get('staff/check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('staff.check-slots');
 });
+
+// Public: Pickup Confirmation
 Route::get('/pickup/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
 Route::post('/pickup/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
-// ====================================================
-// 只有管理员 (Admin) 可以访问的路由
-// ====================================================
+
+// Admin Only Routes
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-
-        // 员工账号管理 (Staff Management)
         Route::resource('staff', StaffController::class);
-
-        // 审计日志 (Audit Logs)
         Route::get('logs', [LogController::class, 'index'])->name('logs.index');
-        
     });
 
+// Load Default Auth Routes (Login, Register, etc.)
 require __DIR__.'/auth.php';
+
+// ====================================================
+// 🟢 CUSTOM OTP PASSWORD RESET ROUTES
+// (Placed after auth.php to override defaults)
+// ====================================================
+Route::middleware('guest')->group(function () {
+    // 1. Request Code Page
+    Route::get('forgot-password', [OTPPasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('forgot-password', [OTPPasswordResetController::class, 'sendResetCode'])->name('password.email');
+
+    // 2. Enter Code & Reset Page
+    Route::get('reset-password-verify', [OTPPasswordResetController::class, 'showResetForm'])->name('password.verify');
+    Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
+});

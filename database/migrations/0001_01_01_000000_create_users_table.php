@@ -11,34 +11,36 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // 1. Users Table
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             
-            // [新增] 必须加这一行，不然 Seeder 会报错！
-            $table->string('name'); 
+            // [FIXED] 'name' is nullable so Registration (which only sends username) works
+            $table->string('name')->nullable(); 
             
             $table->string('username')->unique(); 
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('role')->default('Staff');
+            $table->string('role')->default('Passenger');
+            $table->integer('points')->default(0);
             
-            // Pro 细节
             $table->timestamp('last_login_at')->nullable();
             $table->string('last_login_ip')->nullable();
-
+            
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
         });
-        // 2. Password Reset Tokens 表 (之前误删的)
+
+        // 2. Password Reset Tokens Table
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
-        // 3. Sessions 表 (这次报错缺少的)
+        // 3. Sessions Table
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
