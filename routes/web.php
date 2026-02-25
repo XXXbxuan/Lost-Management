@@ -11,6 +11,8 @@ use App\Http\Controllers\Staff\VoucherController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\Passenger\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\URL;
 // 🟢 NEW: Import the OTP Controller
 use App\Http\Controllers\Auth\OTPPasswordResetController;
 
@@ -124,4 +126,28 @@ Route::middleware('guest')->group(function () {
     // 2. Enter Code & Reset Page
     Route::get('reset-password-verify', [OTPPasswordResetController::class, 'showResetForm'])->name('password.verify');
     Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
+});
+
+
+
+// 终点站（不用改）
+Route::get('/staff/verify-handover/{item_id}', function ($item_id) {
+    return "✅ 扫码成功！系统正在核对物品 ID: " . $item_id . "。防伪签名验证通过！";
+})->name('staff.handover.verify')->middleware('signed'); 
+
+
+// 造码机（把时间改成了 40 秒）
+Route::get('/test-qr', function () {
+    
+    // 制造一个 40秒后 瞬间过期的防伪链接
+    $secureLink = URL::temporarySignedRoute(
+        'staff.handover.verify', 
+        now()->addSeconds(40),   // 👈 就是改了这里！40秒生命倒计时！
+        ['item_id' => 88]        
+    );
+
+    // 画成天空蓝二维码
+    return QrCode::size(300)
+                 ->color(0, 162, 255)
+                 ->generate($secureLink);
 });

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AppointmentConfirmation;
+use SimpleSoftwareIO\QrCode\Facades\QrCode; // 🆕 引入造码机
 // 👇 1. 引入 Log 模型
 use App\Models\AdminActionLog;
 
@@ -50,22 +51,33 @@ class ClaimController extends Controller
         $link = route('pickup.confirm', ['token' => $token]);
         $passengerEmail = $lostReport->passenger_email ?? 'chiabx-wp22@student.tarc.edu.my'; 
         
+        // 🌟 核心魔法：使用 SVG 格式（不需要 Imagick，不會報錯）
+        $qrRaw = QrCode::format('svg') 
+                         ->size(250)
+                         ->color(0, 162, 255)
+                         ->margin(1)
+                         ->generate($link);
+        
+        // 將圖片代碼轉成 Base64 字串，這樣 Gmail 才能直接吃掉它
+        $qrCodeBase64 = base64_encode($qrRaw);
+        
         try {
-            Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $link));
-            $message = 'Appointment set! Email sent to ' . $passengerEmail;
+            // 🆕 傳送 $qrCodeBase64 給郵件類別
+            Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $link, $qrCodeBase64));
             
-            // ✅ [LOG 4] 记录发送预约 (Send Appointment)
+            $message = 'Appointment set! QR Code Email sent to ' . $passengerEmail;
+            
+            // ✅ [LOG 4] 記錄發送預約
             AdminActionLog::create([
                 'admin_name'  => auth()->user()->name ?? 'Staff',
                 'action_type' => 'SEND_APPOINTMENT',
                 'target_name' => "Passenger Email: " . $passengerEmail,
-                'details'     => "Scheduled: {$fullDateTime}. Token generated. Email sent successfully."
+                'details'     => "Scheduled: {$fullDateTime}. Token generated. Email sent successfully with Base64 QR."
             ]);
 
         } catch (\Exception $e) {
             $message = 'Appointment set, but email failed to send: ' . $e->getMessage();
             
-            // 记录失败日志 (可选)
             AdminActionLog::create([
                 'admin_name'  => auth()->user()->name ?? 'Staff',
                 'action_type' => 'APPOINTMENT_EMAIL_FAIL',
