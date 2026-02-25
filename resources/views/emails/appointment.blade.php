@@ -16,16 +16,20 @@
         <p style="margin: 5px 0;"><strong>📍 Location:</strong> {{ $match->appointment_venue ?? 'Admin Office' }}</p>
     </div>
 
-    <div style="text-align: center; margin: 30px 0;">
-        <p style="font-weight: bold; color: #555;">Your Verification QR Code:</p>
-        <img src="data:image/svg+xml;base64,{{ $qrCode }}" alt="QR Code" width="250" style="border: 1px solid #ddd; padding: 10px;">
+    <div style="text-align:center; margin:16px 0;">
+    <img
+        src="cid:{{ $qrCid }}"
+        alt="QR Code"
+        style="width:220px;height:220px;display:block;margin:0 auto;border-radius:12px;"
+    >
     </div>
 
-    <p>Please click the button below to confirm you are coming to collect it:</p>
-
-    <a href="{{ $confirmLink }}" style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">
+    <div style="text-align:center;margin-top:16px;">
+    <a href="{{ $confirmLink }}"
+        style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">
         YES, I Confirm My Pickup
     </a>
+    </div>
 
     <p style="margin-top: 30px; font-size: 12px; color: #888;">
         Ref ID: #{{ $match->id }} | TARUMT Airport Lost & Found
