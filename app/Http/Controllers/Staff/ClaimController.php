@@ -43,51 +43,76 @@ class ClaimController extends Controller
 
         $match = MatchRecord::findOrFail($request->match_id);
         $lostReport = LostItemReport::find($match->lostId);
-
-        $fullDateTime = $request->appointment_date . ' ' . $request->appointment_time;
         $token = strtoupper(Str::random(6));
 
         $match->update([
-            'appointment_at' => $fullDateTime,
+            'appointment_at' => $request->appointment_date . ' ' . $request->appointment_time,
             'verification_token' => $token,
             'is_confirmed' => false,
         ]);
 
-        $link = route('pickup.confirm', ['token' => $token]);
+        // 🌟 核心修改：第一封信的連結是去「確認頁面」，而不是直接給 QR
+        $confirmLink = route('pickup.confirm', ['token' => $token]);
         $passengerEmail = $lostReport->passenger_email ?? 'chiabx-wp22@student.tarc.edu.my';
 
-        // ✅ SimpleSoftwareIO/QrCode 生成 PNG bytes
-        $qrRaw = QrCode::format('png')
-            ->size(250)
-            ->margin(1)
-            ->generate($link);
-
         try {
-            Mail::to($passengerEmail)->send(
-                new AppointmentConfirmation($match, $link, $qrRaw)
-            );
-
-            $message = 'Appointment set! QR Code (CID inline) sent to ' . $passengerEmail;
-
-            AdminActionLog::create([
-                'admin_name'  => auth()->user()->name ?? 'Staff',
-                'action_type' => 'SEND_APPOINTMENT',
-                'target_name' => "Passenger Email: " . $passengerEmail,
-                'details'     => "Scheduled: {$fullDateTime}. CID inline QR attached."
-            ]);
-
+            // 注意：這裡我們暫時不傳 $qrRaw，因為第一封信只需要確認按鈕
+            Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $confirmLink));
+            $message = 'Appointment set! Confirmation link sent to ' . $passengerEmail;
         } catch (\Exception $e) {
-            \Log::error('EMAIL FAILED (CID AppointmentConfirmation)', [
-                'to' => $passengerEmail,
-                'match_id' => $match->id ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             $message = 'Appointment set, but email failed: ' . $e->getMessage();
         }
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * 🌈 核心新增：Smart Verify (智能分流判斷)
+     * 此網址為 QR Code 的內容：route('pickup.verify', ['token' => $token])
+     */
+    public function smartVerify($token)
+    {
+        $match = MatchRecord::where('verification_token', $token)
+                    ->with(['lostReport', 'foundItem'])
+                    ->firstOrFail();
+
+        // 情況 B：判斷是否為已登入的工作人員   
+        if (auth()->check() && auth()->user()->role === 'staff') {
+            // 導向 Staff 專屬驗證頁面 (包含對比照片與確認按鈕)
+            return view('staff.claims.verify_action', compact('match'));
+        }
+
+        // 情況 A：旅客或一般民眾掃碼
+        // 僅作為數位收據顯示資訊，沒有操作按鈕
+        return view('passenger.claims.qr_status', compact('match'));
+    }
+
+    /**
+     * 🛡️ 核心新增：Staff 點擊按鈕後的結案動作
+     */
+    public function completeHandover($id)
+    {
+        DB::transaction(function () use ($id) {
+            $match = MatchRecord::findOrFail($id);
+            
+            // 1. 同步更新資料庫狀態為已領取
+            $match->update(['status' => 'Claimed']);
+            $match->lostReport->update(['status' => 'Claimed']);
+            $match->foundItem->update(['status' => 'Claimed']);
+
+            // 2. 安全防禦：讓 Token 失效防止重複領取
+            $match->update(['verification_token' => null]);
+
+            // 3. 記錄專業日誌
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name ?? 'Staff',
+                'action_type' => 'ITEM_HANDOVER',
+                'target_name' => "Match ID: {$id}",
+                'details'     => "Handover finalized via Staff QR Scan. Item status changed to Claimed."
+            ]);
+        });
+
+        return redirect()->route('staff.dashboard')->with('success', 'Item Handover Completed!');
     }
 
     public function store(Request $request)

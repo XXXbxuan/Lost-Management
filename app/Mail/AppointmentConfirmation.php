@@ -6,8 +6,6 @@ use App\Models\MatchRecord;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Symfony\Component\Mime\Email;
-use Symfony\Component\Mime\Part\DataPart;
 
 class AppointmentConfirmation extends Mailable
 {
@@ -16,22 +14,19 @@ class AppointmentConfirmation extends Mailable
     public MatchRecord $match;
     public string $confirmLink;
 
-    /** Raw PNG bytes */
-    public string $qrRaw;
-
     /**
-     * Content-ID MUST contain "@"
-     * We'll use a valid CID format.
+     * 建立新的郵件實例
+     * 這裡我們只接收 2 個參數，完美對應 Controller 的傳參
      */
-    public string $qrCid = 'pickup-qrcode@lost-management.local';
-
-    public function __construct(MatchRecord $match, string $confirmLink, string $qrRaw)
+    public function __construct(MatchRecord $match, string $confirmLink)
     {
         $this->match = $match;
         $this->confirmLink = $confirmLink;
-        $this->qrRaw = $qrRaw;
     }
 
+    /**
+     * 構建郵件內容
+     */
     public function build()
     {
         return $this->subject('Action Required: Confirm Your Lost Item Pickup')
@@ -39,16 +34,7 @@ class AppointmentConfirmation extends Mailable
             ->with([
                 'match' => $this->match,
                 'confirmLink' => $this->confirmLink,
-                'qrCid' => $this->qrCid,
-            ])
-            ->withSymfonyMessage(function (Email $email) {
-                $part = new DataPart($this->qrRaw, 'qrcode.png', 'image/png');
-                $part->asInline();
-
-                // ✅ Must include "@"
-                $part->setContentId($this->qrCid);
-
-                $email->addPart($part);
-            });
+            ]);
+            // 🌟 這裡刪除了 SymfonyMessage 的 CID 內嵌圖片邏輯
     }
 }
