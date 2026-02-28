@@ -10,18 +10,9 @@ class MatchRecord extends Model
     use HasFactory;
 
     protected $fillable = [
-        'lostId',
-        'foundId', 
-        'notes', 
-        'status', 
-        'verifiedBy', 
-        'verifiedAt', 
-        'similarityScore',
-        'appointment_at',
-        'appointment_venue',
-        'verification_token',
-        'is_confirmed',
-        'confirmed_at'
+        'lostId', 'foundId', 'notes', 'status', 'verifiedBy', 
+        'verifiedAt', 'similarityScore', 'appointment_at',
+        'appointment_venue', 'verification_token', 'is_confirmed', 'confirmed_at'
     ];
 
     protected $casts = [
@@ -30,13 +21,12 @@ class MatchRecord extends Model
         'is_confirmed' => 'boolean',
     ];
 
-    // 如果你想关联 LostItemReport
+    // ✅ 統一使用 lostItem
     public function lostItem()
     {
         return $this->belongsTo(LostItemReport::class, 'lostId');
     }
 
-    // 如果你想关联 FoundItem
     public function foundItem()
     {
         return $this->belongsTo(FoundItem::class, 'foundId');

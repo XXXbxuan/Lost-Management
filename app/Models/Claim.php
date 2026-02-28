@@ -24,8 +24,8 @@ class Claim extends Model
         return $this->belongsTo(FoundItem::class, 'foundId');
     }
 
-    // 2. 关联：找到对应的 Lost Report (显示乘客信息)
-    public function lostReport()
+    // 2. 🌟 关联：已統一改為 lostItem！找到对应的 Lost Report (显示乘客信息)
+    public function lostItem()
     {
         return $this->belongsTo(LostItemReport::class, 'lostId');
     }

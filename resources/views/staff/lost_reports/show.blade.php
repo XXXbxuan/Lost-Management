@@ -15,19 +15,21 @@
                     <div class="bg-white p-4 shadow-sm rounded-lg border border-gray-200">
                         <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-xs uppercase tracking-wider">Filter Criteria</h3>
                         
-                        <form method="GET" action="{{ route('staff.lost-items.show', $lostReport->id) }}">
+                        {{-- 🌟 這裡改成 $lostItem->id --}}
+                        <form method="GET" action="{{ route('staff.lost-items.show', $lostItem->id) }}">
                             <input type="hidden" name="search" value="1">
                             
                             <div class="mb-3">
                                 <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Category</label>
                                 <select name="category" class="w-full text-sm rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-1.5">
                                     <option value="">-- All --</option>
-                                    <option value="Electronics" {{ request('category', $lostReport->category) == 'Electronics' ? 'selected' : '' }}>Electronics</option>
-                                    <option value="Bag" {{ request('category', $lostReport->category) == 'Bag' ? 'selected' : '' }}>Bag</option>
-                                    <option value="Wallet" {{ request('category', $lostReport->category) == 'Wallet' ? 'selected' : '' }}>Wallet</option>
-                                    <option value="Clothing" {{ request('category', $lostReport->category) == 'Clothing' ? 'selected' : '' }}>Clothing</option>
-                                    <option value="Document" {{ request('category', $lostReport->category) == 'Document' ? 'selected' : '' }}>Document</option>
-                                    <option value="Others" {{ request('category', $lostReport->category) == 'Others' ? 'selected' : '' }}>Others</option>
+                                    {{-- 🌟 以下全部改成 $lostItem->category --}}
+                                    <option value="Electronics" {{ request('category', $lostItem->category) == 'Electronics' ? 'selected' : '' }}>Electronics</option>
+                                    <option value="Bag" {{ request('category', $lostItem->category) == 'Bag' ? 'selected' : '' }}>Bag</option>
+                                    <option value="Wallet" {{ request('category', $lostItem->category) == 'Wallet' ? 'selected' : '' }}>Wallet</option>
+                                    <option value="Clothing" {{ request('category', $lostItem->category) == 'Clothing' ? 'selected' : '' }}>Clothing</option>
+                                    <option value="Document" {{ request('category', $lostItem->category) == 'Document' ? 'selected' : '' }}>Document</option>
+                                    <option value="Others" {{ request('category', $lostItem->category) == 'Others' ? 'selected' : '' }}>Others</option>
                                 </select>
                             </div>
 
@@ -45,7 +47,8 @@
                             <div class="mb-3">
                                 <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Date Range</label>
                                 <div class="flex gap-2">
-                                    <input type="date" name="date_from" value="{{ request('date_from', $lostReport->lost_time->format('Y-m-d')) }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
+                                    {{-- 🌟 這裡改成 $lostItem->lost_time --}}
+                                    <input type="date" name="date_from" value="{{ request('date_from', $lostItem->lost_time->format('Y-m-d')) }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
                                     <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
                                 </div>
                             </div>
@@ -66,17 +69,19 @@
                         <div class="space-y-3 text-sm">
                             <div class="bg-gray-50 p-2 rounded border border-gray-100">
                                 <span class="text-[10px] font-bold text-gray-400 block uppercase">Report ID</span>
-                                <span class="font-black text-red-600">#{{ $lostReport->id }}</span>
+                                {{-- 🌟 這裡改成 $lostItem->id --}}
+                                <span class="font-black text-red-600">#{{ $lostItem->id }}</span>
                             </div>
-                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Passenger</span> <span class="font-semibold">{{ $lostReport->passenger_name }}</span></p>
-                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Item Details</span> {{ $lostReport->item_name }} ({{ $lostReport->color }})</p>
-                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Lost At</span> {{ $lostReport->lost_location }}</p>
-                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Date</span> {{ $lostReport->lost_time->format('Y-m-d') }}</p>
+                            {{-- 🌟 以下全部改成 $lostItem --}}
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Passenger</span> <span class="font-semibold">{{ $lostItem->passenger_name }}</span></p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Item Details</span> {{ $lostItem->item_name }} ({{ $lostItem->color }})</p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Lost At</span> {{ $lostItem->lost_location }}</p>
+                            <p><span class="text-[10px] font-bold text-gray-400 block uppercase">Date</span> {{ $lostItem->lost_time->format('Y-m-d') }}</p>
                             
-                            @if($lostReport->image_path)
+                            @if($lostItem->image_path)
                                 <div class="mt-2">
                                     <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Reference Photo</span>
-                                    <img src="{{ asset('storage/' . $lostReport->image_path) }}" class="w-full rounded border shadow-sm">
+                                    <img src="{{ asset('storage/' . $lostItem->image_path) }}" class="w-full rounded border shadow-sm">
                                 </div>
                             @endif
                         </div>
@@ -136,7 +141,8 @@
                                         </div>
                                     </div>
 
-                                    <a href="{{ route('staff.match.verify', ['lost_id' => $lostReport->id, 'found_id' => $found->id, 'score' => $found->similarity_score]) }}" 
+                                    {{-- 🌟 這裡改成 $lostItem->id --}}
+                                    <a href="{{ route('staff.match.verify', ['lost_id' => $lostItem->id, 'found_id' => $found->id, 'score' => $found->similarity_score]) }}" 
                                        class="w-full bg-blue-50 text-blue-600 font-bold py-2 rounded-md hover:bg-blue-100 transition text-xs uppercase tracking-wider block text-center no-underline border border-blue-200">
                                         Verify Match
                                     </a>

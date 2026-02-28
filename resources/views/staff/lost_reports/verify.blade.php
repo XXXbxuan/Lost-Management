@@ -9,7 +9,8 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <div class="mb-4">
-                <a href="{{ route('staff.lost-items.show', $lostReport->id) }}" class="text-gray-500 hover:text-gray-700 text-sm flex items-center">
+                {{-- 🌟 改為 $lostItem->id --}}
+                <a href="{{ route('staff.lost-items.show', $lostItem->id) }}" class="text-gray-500 hover:text-gray-700 text-sm flex items-center">
                     &larr; Back to Candidate List
                 </a>
             </div>
@@ -21,8 +22,9 @@
                     
                     <div class="space-y-4 text-sm">
                         <div class="h-48 bg-gray-100 rounded border overflow-hidden">
-                            @if($lostReport->image_path)
-                                <img src="{{ asset('storage/' . $lostReport->image_path) }}" class="w-full h-full object-cover">
+                            {{-- 🌟 以下全部改為 $lostItem --}}
+                            @if($lostItem->image_path)
+                                <img src="{{ asset('storage/' . $lostItem->image_path) }}" class="w-full h-full object-cover">
                             @else
                                 <div class="flex items-center justify-center h-full text-gray-400">No Image</div>
                             @endif
@@ -30,31 +32,31 @@
 
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Lost ID</span>
-                            <span class="font-bold text-gray-900">#{{ $lostReport->id }}</span>
+                            <span class="font-bold text-gray-900">#{{ $lostItem->id }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Item Name</span>
-                            <span class="text-gray-900">{{ $lostReport->item_name }}</span>
+                            <span class="text-gray-900">{{ $lostItem->item_name }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Category</span>
-                            <span class="text-gray-900">{{ $lostReport->category }}</span>
+                            <span class="text-gray-900">{{ $lostItem->category }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Color</span>
-                            <span class="text-gray-900">{{ $lostReport->color }}</span>
+                            <span class="text-gray-900">{{ $lostItem->color }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Location</span>
-                            <span class="text-gray-900">{{ $lostReport->lost_location }}</span>
+                            <span class="text-gray-900">{{ $lostItem->lost_location }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Date</span>
-                            <span class="text-gray-900">{{ $lostReport->lost_time->format('Y-m-d') }}</span>
+                            <span class="text-gray-900">{{ $lostItem->lost_time->format('Y-m-d') }}</span>
                         </div>
                         <div>
                             <span class="block text-xs font-bold text-gray-500 uppercase">Description</span>
-                            <p class="text-gray-600 bg-gray-50 p-2 rounded mt-1 border">{{ $lostReport->description ?? 'No description provided.' }}</p>
+                            <p class="text-gray-600 bg-gray-50 p-2 rounded mt-1 border">{{ $lostItem->description ?? 'No description provided.' }}</p>
                         </div>
                     </div>
                 </div>
@@ -108,7 +110,8 @@
                     
                     <form action="{{ route('staff.match.store') }}" method="POST">
                         @csrf
-                        <input type="hidden" name="lost_id" value="{{ $lostReport->id }}">
+                        {{-- 🌟 改為 $lostItem->id --}}
+                        <input type="hidden" name="lost_id" value="{{ $lostItem->id }}">
                         <input type="hidden" name="found_id" value="{{ $foundItem->id }}">
                         <input type="hidden" name="similarity_score" value="{{ $score }}">
 
@@ -142,7 +145,8 @@
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4 border-t">
-                            <a href="{{ route('staff.lost-items.show', $lostReport->id) }}" 
+                            {{-- 🌟 改為 $lostItem->id --}}
+                            <a href="{{ route('staff.lost-items.show', $lostItem->id) }}" 
                             class="px-4 py-2 text-gray-600 font-bold text-sm hover:underline">
                                 Cancel
                             </a>

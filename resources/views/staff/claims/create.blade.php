@@ -51,7 +51,8 @@
 
                     <form action="{{ route('staff.claims.store') }}" method="POST">
                         @csrf
-                        <input type="hidden" name="lostId" value="{{ $lostReport->id }}">
+                        {{-- 🌟 這裡改成 $lostItem->id --}}
+                        <input type="hidden" name="lostId" value="{{ $lostItem->id }}">
                         <input type="hidden" name="foundId" value="{{ $foundItem->id }}">
 
                         <div class="grid grid-cols-1 gap-6">
@@ -60,11 +61,13 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="text-sm text-gray-600">Full Name</label>
-                                        <input type="text" name="claimerName" value="{{ $lostReport->passenger_name }}" class="w-full bg-gray-200 border-none rounded text-gray-600 font-bold" readonly>
+                                        {{-- 🌟 這裡改成 $lostItem->passenger_name --}}
+                                        <input type="text" name="claimerName" value="{{ $lostItem->passenger_name }}" class="w-full bg-gray-200 border-none rounded text-gray-600 font-bold" readonly>
                                     </div>
                                     <div>
                                         <label class="text-sm text-gray-600">Phone Number</label>
-                                        <input type="text" name="claimerPhone" value="{{ $lostReport->passenger_phone }}" class="w-full bg-gray-200 border-none rounded text-gray-600 font-bold" readonly>
+                                        {{-- 🌟 這裡改成 $lostItem->passenger_phone --}}
+                                        <input type="text" name="claimerPhone" value="{{ $lostItem->passenger_phone }}" class="w-full bg-gray-200 border-none rounded text-gray-600 font-bold" readonly>
                                     </div>
                                 </div>
                             </div>

@@ -75,10 +75,10 @@
 
                         <form action="{{ route('staff.claims.store') }}" method="POST">
                             @csrf
-                            <input type="hidden" name="lostId" value="{{ $lostReport->id }}">
+                            <input type="hidden" name="lostId" value="{{ $lostItem->id }}">
                             <input type="hidden" name="foundId" value="{{ $foundItem->id }}">
-                            <input type="hidden" name="claimerName" value="{{ $lostReport->passenger_name }}">
-                            <input type="hidden" name="claimerPhone" value="{{ $lostReport->passenger_phone }}">
+                            <input type="hidden" name="claimerName" value="{{ $lostItem->passenger_name }}">
+                            <input type="hidden" name="claimerPhone" value="{{ $lostItem->passenger_phone }}">
                             
                             <div class="mb-6">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Verify Identity Document (IC / Passport) <span class="text-red-500">*</span></label>
@@ -105,4 +105,4 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+</x-app-layout> 
