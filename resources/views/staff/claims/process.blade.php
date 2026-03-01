@@ -27,9 +27,97 @@
                 <div class="md:col-span-2 bg-white shadow-sm rounded-lg p-6">
                     
                     @if(is_null($match->appointment_at))
+                        
+                        @if($match->suggested_time_1 || $match->suggested_time_2)
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg shadow-sm">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center">
+                                    <h3 class="text-blue-800 font-bold text-lg">💡 Passenger's Suggestion</h3>
+                                </div>
+                                <span class="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full font-bold">
+                                    ❌ Previously Rejected
+                                </span>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                @if($match->suggested_time_1)
+                                <div class="flex items-center justify-between bg-white p-3 rounded border border-blue-100 shadow-sm">
+                                    <span class="text-sm text-gray-700">
+                                        <span class="font-bold text-blue-600 inline-block w-20">Option 1:</span> 
+                                        {{ \Carbon\Carbon::parse($match->suggested_time_1)->format('d M Y, h:i A') }}
+                                    </span>
+                                    <button type="button" 
+                                            onclick="fillSuggestedTime('{{ \Carbon\Carbon::parse($match->suggested_time_1)->format('Y-m-d\TH:i') }}')"
+                                            class="bg-green-500 hover:bg-green-600 text-white text-xs px-4 py-1.5 rounded-full transition-all shadow-sm">
+                                        ✔ Use This
+                                    </button>
+                                </div>
+                                @endif
+
+                                @if($match->suggested_time_2)
+                                <div class="flex items-center justify-between bg-white p-3 rounded border border-blue-100 shadow-sm">
+                                    <span class="text-sm text-gray-700">
+                                        <span class="font-bold text-blue-600 inline-block w-20">Option 2:</span> 
+                                        {{ \Carbon\Carbon::parse($match->suggested_time_2)->format('d M Y, h:i A') }}
+                                    </span>
+                                    <button type="button" 
+                                            onclick="fillSuggestedTime('{{ \Carbon\Carbon::parse($match->suggested_time_2)->format('Y-m-d\TH:i') }}')"
+                                            class="bg-green-500 hover:bg-green-600 text-white text-xs px-4 py-1.5 rounded-full transition-all shadow-sm">
+                                        ✔ Use This
+                                    </button>
+                                </div>
+                                @endif
+                            </div>
+
+                            @if($match->suggested_remarks)
+                            <div class="mt-4 text-sm text-gray-600 bg-blue-100/50 p-3 rounded border border-blue-100">
+                                <span class="font-bold text-gray-700">Note:</span> "{{ $match->suggested_remarks }}"
+                            </div>
+                            @endif
+                        </div>
+
+                        <script>
+                            function fillSuggestedTime(datetimeValue) {
+                                const [datePart, timePart] = datetimeValue.split('T');
+                                const dateInput = document.querySelector('input[name="appointment_date"]'); 
+                                const timeInput = document.querySelector('input[name="appointment_time"]');
+
+                                if(dateInput && timeInput) {
+                                    dateInput.value = datePart;
+                                    timeInput.value = timePart;
+                                    
+                                    // 閃爍綠色提示
+                                    dateInput.classList.add('ring-2', 'ring-green-500', 'border-green-500');
+                                    timeInput.classList.add('ring-2', 'ring-green-500', 'border-green-500');
+                                    setTimeout(() => {
+                                        dateInput.classList.remove('ring-2', 'ring-green-500', 'border-green-500');
+                                        timeInput.classList.remove('ring-2', 'ring-green-500', 'border-green-500');
+                                    }, 800);
+                                }
+                            }
+                        </script>
+                        @endif
                         <h3 class="text-lg font-bold text-blue-800 mb-4">📅 Step 1: Schedule Pickup</h3>
                         <p class="text-sm text-gray-500 mb-6">Please contact the passenger and agree on a pickup time.</p>
 
+                        @if ($errors->any())
+                            <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">Oops! Please fix these errors:</h3>
+                                        <ul class="mt-1 text-sm text-red-700 list-disc list-inside">
+                                            @foreach ($errors->all() as $error)
+                                                <li>{{ $error }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                        
                         <form action="{{ route('staff.claims.schedule') }}" method="POST">
                             @csrf
                             <input type="hidden" name="match_id" value="{{ $match->id }}">
@@ -46,7 +134,7 @@
                             </div>
                             
                             <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">
-                                Set Appointment & Send SMS
+                                Set Appointment & Send Email
                             </button>
                         </form>
 
@@ -54,15 +142,14 @@
                         <div class="text-center py-8">
                             <div class="text-5xl mb-4">📩</div>
                             <h3 class="text-xl font-bold text-gray-800">Appointment Set! Waiting for Confirmation...</h3>
-                            <p class="text-gray-500 mt-2">The passenger has received an SMS. They must click the link to confirm.</p>
+                            <p class="text-gray-500 mt-2">The passenger has received an email. They must click the link to confirm.</p>
                             
                             <div class="mt-8 bg-yellow-50 border border-yellow-200 p-4 rounded text-left shadow-sm">
-                                <p class="text-xs font-bold text-yellow-800 uppercase mb-1">🔧 Developer Tool (Simulated SMS):</p>
+                                <p class="text-xs font-bold text-yellow-800 uppercase mb-1">🔧 Developer Tool (Simulated Email Link):</p>
                                 <p class="text-sm text-gray-600">User received this link:</p>
                                 <a href="{{ route('pickup.confirm', ['token' => $match->verification_token]) }}" target="_blank" class="text-blue-600 underline font-mono break-all">
                                     {{ route('pickup.confirm', ['token' => $match->verification_token]) }}
                                 </a>
-                                <p class="text-xs text-gray-400 mt-2">(Click this link later to simulate user confirmation)</p>
                             </div>
                         </div>
 
@@ -105,4 +192,4 @@
             </div>
         </div>
     </div>
-</x-app-layout> 
+</x-app-layout>

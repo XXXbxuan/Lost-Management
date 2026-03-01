@@ -12,7 +12,10 @@ class MatchRecord extends Model
     protected $fillable = [
         'lostId', 'foundId', 'notes', 'status', 'verifiedBy', 
         'verifiedAt', 'similarityScore', 'appointment_at',
-        'appointment_venue', 'verification_token', 'is_confirmed', 'confirmed_at'
+        'appointment_venue', 'verification_token', 'is_confirmed', 'confirmed_at','suggested_time_1',
+    'suggested_time_2',
+    'suggested_remarks',
+    'rejected_at',
     ];
 
     protected $casts = [

@@ -3,32 +3,45 @@
 <head>
     <title>Pickup Appointment</title>
 </head>
-<body style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333;">
+<body style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333; background-color: #f9fafb;">
 
-    <h2 style="color: #2563eb;">Action Required: Confirm Your Pickup</h2>
-    <p>Your lost item has been matched! Please confirm the following appointment to receive your verification QR code.</p>
-    
-    <div style="background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2563eb;">
-        <p style="margin: 5px 0;">
-            <strong>📅 Scheduled Time:</strong> 
-            {{ is_string($match->appointment_at) ? $match->appointment_at : $match->appointment_at->format('d M Y, h:i A') }}
+    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <h2 style="color: #1e40af; margin-top: 0;">Action Required: Confirm Your Pickup</h2>
+        <p>Your lost item has been matched! Please review the appointment details below to proceed.</p>
+        
+        <div style="background: #eff6ff; padding: 20px; margin: 25px 0; border-radius: 12px; border-left: 5px solid #3b82f6;">
+            <p style="margin: 8px 0; font-size: 16px;">
+                <strong>📅 Scheduled Time:</strong> <br>
+                <span style="color: #1e40af;">
+                    {{ is_string($match->appointment_at) ? $match->appointment_at : $match->appointment_at->format('d M Y, h:i A') }}
+                </span>
+            </p>
+            <p style="margin: 8px 0; font-size: 16px;">
+                <strong>📍 Location:</strong> <br>
+                <span style="color: #1e40af;">{{ $match->appointment_venue ?? 'Admin Office' }}</span>
+            </p>
+        </div>
+
+        <p style="color: #4b5563; font-size: 14px; margin-bottom: 30px;">
+            <strong>Important:</strong> You must confirm your attendance to receive your unique QR code. If this time does not work for you, please click "Reject" to request a reschedule.
         </p>
-        <p style="margin: 5px 0;"><strong>📍 Location:</strong> {{ $match->appointment_venue ?? 'Admin Office' }}</p>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{{ $confirmLink }}"
+                style="display: inline-block; background: #16a34a; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 10px; min-width: 200px;">
+                ✅ CONFIRM TIME
+            </a>
+
+            <a href="{{ route('pickup.reject', ['token' => $match->verification_token]) }}"
+                style="display: inline-block; background: #ef4444; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 10px; min-width: 200px;">
+                ❌ REJECT / RESCHEDULE
+            </a>
+        </div>
+
+        <p style="margin-top: 40px; font-size: 12px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; pt: 20px;">
+            Ref ID: #{{ $match->id }} | Airport Lost & Found Management System <br>
+            This link is secure and unique to your report.
+        </p>
     </div>
-
-    <p style="color: #666; font-size: 14px;">
-        Important: You must click the button below to confirm your attendance. Once confirmed, your unique QR code will be displayed.
-    </p>
-
-    <div style="text-align:center;margin-top:30px;">
-        <a href="{{ $confirmLink }}"
-            style="display:inline-block;background:#16a34a;color:#fff;padding:14px 30px;border-radius:8px;text-decoration:none;font-weight:bold;box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            CONFIRM & GET MY QR CODE
-        </a>
-    </div>
-
-    <p style="margin-top: 40px; font-size: 11px; color: #aaa; text-align: center;">
-        Ref ID: #{{ $match->id }} | This appointment will expire 24 hours after the scheduled time.
-    </p>
 </body>
 </html>

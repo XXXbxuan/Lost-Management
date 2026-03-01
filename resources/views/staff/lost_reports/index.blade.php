@@ -115,10 +115,23 @@
                                             @if($lostItem->status == 'Matched')
                                                 <div class="flex flex-col items-center gap-2">
                                                     {{-- Manage Claim Link --}}
-                                                    <a href="{{ route('staff.claims.create', ['lost_id' => $lostItem->id]) }}" 
-                                                    class="bg-emerald-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-emerald-700 shadow-sm transition no-underline uppercase">
-                                                        🛠️ Manage Claim
-                                                    </a>
+                                                    {{-- Manage Claim Link --}}
+{{-- Manage Claim Link (已修正：智慧導向 Process 頁面) --}}
+                                                    @php
+                                                        $existingMatch = \App\Models\MatchRecord::where('lostId', $lostItem->id)->first();
+                                                    @endphp
+
+                                                    @if($existingMatch)
+                                                        <a href="{{ route('staff.claims.process', $existingMatch->id) }}" 
+                                                        class="bg-emerald-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-emerald-700 shadow-sm transition no-underline uppercase">
+                                                            🛠️ Manage Claim
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('staff.claims.create', ['lost_id' => $lostItem->id]) }}" 
+                                                        class="bg-emerald-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-emerald-700 shadow-sm transition no-underline uppercase">
+                                                            🛠️ Manage Claim
+                                                        </a>
+                                                    @endif
                                                     
                                                     {{-- Undo Match Form --}}
                                                     <form action="{{ route('staff.match.unmatch', $lostItem->id) }}" method="POST" onsubmit="return confirm('Undo this match?')">

@@ -87,4 +87,49 @@ class PickupController extends Controller
             return back()->with('error', 'An error occurred while sending your pass. Please try again or check your history.');
         }
     }
+
+    /**
+     * 旅客點擊 Reject，顯示「建議新時間」的表單
+     */
+    /**
+     * 1. 旅客點擊 Email 的 Reject，來到「拒絕與重新提議」的合併頁面
+     */
+    public function rejectAppointment($token)
+    {
+        $match = MatchRecord::where('verification_token', $token)->firstOrFail();
+        return view('passenger.appointment_rejected', compact('match'));
+    }
+
+    /**
+     * 2. 接收旅客送出的表單
+     */
+    public function submitProposal(Request $request, $token)
+    {
+        $request->validate([
+            'suggested_time_1' => 'required|date',
+            'suggested_time_2' => 'nullable|date',
+            'suggested_remarks' => 'nullable|string|max:500',
+        ]);
+
+        $match = MatchRecord::where('verification_token', $token)->firstOrFail();
+
+        // 更新資料庫
+        $match->update([
+            'appointment_at' => null,     
+            'appointment_venue' => null,  
+            'status' => 'Reschedule Requested',
+            'is_confirmed' => false,
+            'suggested_time_1' => $request->suggested_time_1,
+            'suggested_time_2' => $request->suggested_time_2,
+            'suggested_remarks' => $request->suggested_remarks,
+            'rejected_at' => now(),       
+            'verification_token' => \Illuminate\Support\Str::random(40), // 換掉 Token 確保安全
+        ]);
+
+        // 直接返回同一個視圖，但帶上 success 變數，畫面就會變成「綠色勾勾」
+        return view('passenger.appointment_rejected', [
+            'match' => $match,
+            'success' => true
+        ]);
+    }
 }

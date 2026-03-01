@@ -30,28 +30,55 @@
             </div>
         </div>
 
-        {{-- Step 3: Appointment (已修改为绿色) --}}
+       {{-- Step 3: Appointment (包含 Scheduled 與 Rejected 狀態) --}}
         @php
             $isScheduled = !is_null($match->appointment_at);
+            // 🌟 判斷是否被拒絕：有 rejected_at 紀錄，且目前沒有 appointment_at (代表舊的被清空了)
+            $isRejected = !is_null($match->rejected_at) && is_null($match->appointment_at);
         @endphp
+        
         <div class="flex flex-col items-center w-1/5 relative group">
-            {{-- 背景色：改为 bg-green-500 --}}
-            <div class="w-10 h-10 {{ $isScheduled ? 'bg-green-500' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white transition-colors">
-                {{-- 图标：改为打勾 --}}
-                {{ $isScheduled ? '✓' : '3' }}
-            </div>
-            {{-- 标题颜色 --}}
-            <h3 class="mt-2 text-sm font-bold {{ $isScheduled ? 'text-gray-800' : 'text-gray-400' }}">Appointment</h3>
-            <div class="mt-1 text-xs text-center text-gray-500 space-y-1">
+            
+            {{-- 背景色：排好變綠色，被拒絕變紅色，還沒排變灰色 --}}
+            <div class="w-10 h-10 
+                {{ $isScheduled ? 'bg-green-500' : ($isRejected ? 'bg-red-500' : 'bg-gray-300') }} 
+                rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white transition-colors">
+                
+                {{-- 圖標：排好打勾，被拒絕打叉，還沒排顯示 3 --}}
                 @if($isScheduled)
-                    {{-- 字体颜色：改为绿色 --}}
-                    <p class="font-bold text-green-600">{{ \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') }}</p>
-                    <p>Loc: Admin Office</p>
-                    <p>SMS: <span class="text-green-500">Sent</span></p>
+                    ✓
+                @elseif($isRejected)
+                    ✕
                 @else
+                    3
+                @endif
+            </div>
+            
+            {{-- 標題顏色與文字 --}}
+            <h3 class="mt-2 text-sm font-bold 
+                {{ $isScheduled ? 'text-gray-800' : ($isRejected ? 'text-red-600' : 'text-gray-400') }}">
+                {{ $isRejected ? 'Rejected' : 'Appointment' }}
+            </h3>
+            
+            {{-- 下方詳細資訊 --}}
+            <div class="mt-1 text-xs text-center space-y-1">
+                @if($isScheduled)
+                    {{-- 🟢 狀態：已安排 --}}
+                    <p class="font-bold text-green-600">{{ \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') }}</p>
+                    <p class="text-gray-500">Loc: Admin Office</p>
+                    <p class="text-gray-500">Email: <span class="text-green-500 font-bold">Sent</span></p>
+                    
+                @elseif($isRejected)
+                    {{-- 🔴 狀態：被拒絕 --}}
+                    <p class="font-bold text-red-500">{{ \Carbon\Carbon::parse($match->rejected_at)->format('M d, h:i A') }}</p>
+                    <p class="text-[10px] text-red-400 italic leading-tight">Passenger proposed<br>new time</p>
+                    
+                @else
+                    {{-- ⚪ 狀態：尚未安排 --}}
                     <p class="italic text-gray-400">Not scheduled yet</p>
                 @endif
             </div>
+            
         </div>
 
         {{-- Step 4: Confirmed --}}

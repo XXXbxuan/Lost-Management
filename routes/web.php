@@ -46,8 +46,11 @@ Route::prefix('pickup')->group(function () {
     Route::post('/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
     // 🌟 核心：智能分流入口 (QR Code 指向此處)
-    // 系統會根據訪問者是否為 Staff 顯示不同介面
     Route::get('/verify/{token}', [ClaimController::class, 'smartVerify'])->name('pickup.verify');
+
+    // 🌟 已修復：拔除多餘的 /pickup，避免變成 /pickup/pickup/reject
+    Route::get('/reject/{token}', [PickupController::class, 'rejectAppointment'])->name('pickup.reject');
+    Route::post('/propose/{token}', [PickupController::class, 'submitProposal'])->name('pickup.propose');
 });
 
 // ====================================================
@@ -87,6 +90,9 @@ Route::middleware('auth')->group(function () {
         Route::get('claims-history', [ClaimController::class, 'index'])->name('claims.index');
         Route::post('claims/schedule', [ClaimController::class, 'schedule'])->name('claims.schedule');
         Route::get('/claims/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('claims.timeline_html');
+
+        // 🌟🌟🌟 這裡就是剛才缺少的 Process 路由！補上了！ 🌟🌟🌟
+        Route::get('/claims/{id}/process', [ClaimController::class, 'process'])->name('claims.process');
 
         // 🌟 最終領取確認：只有登入的 Staff 能執行結案動作
         Route::post('complete-handover/{id}', [ClaimController::class, 'completeHandover'])->name('handover.complete');
