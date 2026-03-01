@@ -117,47 +117,75 @@ class ClaimController extends Controller
                     ->with(['lostItem', 'foundItem'])
                     ->firstOrFail();
 
-        // 情況 A：工作人員掃碼 (已登入)
-        if (auth()->check() && auth()->user()->role === 'staff') {
-            if ($match->status === 'Claimed') {
-                return view('staff.claims.qr_status_claimed', compact('match'));
+        // 🌟 優化後的判斷：
+        // 1. 先確認是否登入
+        // 2. 使用 strtolower 將角色轉為小寫，並同時支援 'admin' 和 'staff'
+        if (auth()->check()) {
+            $userRole = strtolower(auth()->user()->role); // 轉為小寫比較安全
+            
+            if ($userRole === 'admin' || $userRole === 'staff') {
+                
+                if ($match->status === 'Claimed') {
+                    return view('staff.claims.qr_status_claimed', compact('match'));
+                }
+
+                return view('staff.claims.verify_action', compact('match'));
             }
-            return view('staff.claims.verify_action', compact('match'));
         }
 
-        // 情況 B：旅客掃碼 (顯示數位收據)
+        // --- 否則一律顯示旅客畫面 ---
+        if ($match->status === 'Claimed') {
+            return view('passenger.claims.pickup_success_receipt', compact('match'));
+        }
+
         return view('passenger.claims.qr_status', compact('match'));
     }
-
     /**
      * 4. 最終領取確認 (Handover)
      */
     public function completeHandover(Request $request, $id)
     {
+        // 1. 預載關聯，避免 N+1 問題
         $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
 
+        // 🌟 安全檢查：如果已經結案了，就不要再跑一次
+        if ($match->status === 'Claimed') {
+            return redirect()->route('staff.claims.index')
+                            ->with('info', 'This case has already been closed.');
+        }
+
         try {
-            DB::transaction(function () use ($match) {
-                // 1. 同步更新所有關聯狀態為已領取
-                $match->update(['status' => 'Claimed']);
+            // 2. 使用資料庫事務，確保「要嘛全成功，要嘛全失敗」
+            \DB::transaction(function () use ($match) {
+                
+                // A. 更新 Match 紀錄：標記狀態、記錄核准員工與時間
+                $match->update([
+                    'status'     => 'Claimed',
+                    'verifiedBy' => auth()->id(), // 🌟 記錄是誰核對的 (Audit)
+                    'verifiedAt' => now(),       // 🌟 記錄確切領取時間
+                ]);
+
+                // B. 同步更新相關物品狀態 (使用 Eloquent 關聯更新)
                 $match->lostItem->update(['status' => 'Claimed']);
                 $match->foundItem->update(['status' => 'Claimed']);
 
-                // 2. 寫入 Admin 操作日誌
-                AdminActionLog::create([
+                // C. 寫入 Admin 操作日誌 (展現系統的嚴謹性)
+                \App\Models\AdminActionLog::create([
                     'admin_name'  => auth()->user()->name,
                     'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                    'target_name' => "Passenger: " . $match->lostItem->passenger_name,
-                    'details'     => "Handed over Found Item #{$match->foundItem->id} via QR verification."
+                    'target_name' => "Passenger: " . ($match->lostItem->passenger_name ?? 'Unknown'),
+                    'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification."
                 ]);
             });
 
-            return redirect()->route('staff.lost-items.index')
-                             ->with('success', '✅ Handover successful. The case is now closed!');
+            // 3. 成功後跳轉 (建議跳轉到 Claims List 或 Dashboard)
+            return redirect()->route('staff.claims.index') 
+                            ->with('success', '✅ Handover successful. The case is now permanently closed!');
 
         } catch (\Exception $e) {
-            Log::error("Handover Error: " . $e->getMessage());
-            return back()->with('error', 'Critical Error: Could not update item status.');
+            // 4. 錯誤處理與日誌記錄
+            \Log::error("Critical Handover Error: " . $e->getMessage());
+            return back()->with('error', 'Critical Error: Data update failed. Please check system logs.');
         }
     }
 

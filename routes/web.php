@@ -41,20 +41,21 @@ Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'hand
 // 處理旅客 Email 確認與 QR Code 智能驗證分流
 // ====================================================
 Route::prefix('pickup')->group(function () {
-    // 旅客點擊 Email 按鈕後的預約確認頁面
+    // 旅客點擊 Email 按鈕後的預約確認流程
     Route::get('/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
     Route::post('/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
-    // 🌟 核心：智能分流入口 (QR Code 指向此處)
+    // 🌟 核心：智能分流入口 (QR Code 掃描後指向此處)
+    // 雖然在公開區，但 Controller 會判斷 Auth 狀態來顯示「憑證」或「 Staff 比對頁」
     Route::get('/verify/{token}', [ClaimController::class, 'smartVerify'])->name('pickup.verify');
 
-    // 🌟 已修復：拔除多餘的 /pickup，避免變成 /pickup/pickup/reject
+    // 旅客拒絕預約與提交新建議時間
     Route::get('/reject/{token}', [PickupController::class, 'rejectAppointment'])->name('pickup.reject');
     Route::post('/propose/{token}', [PickupController::class, 'submitProposal'])->name('pickup.propose');
 });
 
 // ====================================================
-// 🔐 4. 登入保護路由 (Logged In Users)
+// 🔐 4. 登入保護路由 (Logged In Users Only)
 // ====================================================
 Route::middleware('auth')->group(function () {
     
@@ -63,7 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // --- [Passenger 旅客端功能] ---
+    // --- [Passenger 旅客端功能群組] ---
     Route::prefix('passenger')->name('passenger.')->group(function () {
         Route::get('/report', [DashboardController::class, 'showReportForm'])->name('report');
         Route::get('/found-items', [DashboardController::class, 'showFoundItems'])->name('found_items');
@@ -72,35 +73,37 @@ Route::middleware('auth')->group(function () {
         Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
     });
 
-    // --- [Staff 工作人員端功能] ---
+    // --- [Staff 工作人員端功能群組] ---
     Route::prefix('staff')->name('staff.')->group(function () {
         
-        // 物品管理 (Found / Lost Items)
+        // 資源管理：Found / Lost Items
         Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store']);
         Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
 
-        // 匹配與驗證邏輯
+        // 匹配與驗證邏輯 (Match Verification)
         Route::get('match-verify/{lost_id}/{found_id}', [LostItemController::class, 'verify'])->name('match.verify');
         Route::post('match-verify/save', [LostItemController::class, 'storeMatch'])->name('match.store');
         Route::post('match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('match.unmatch');
         
-        // 領取管理 (Claims & Handover)
-        Route::get('claims/create', [ClaimController::class, 'createClaim'])->name('claims.create');
-        Route::post('claims/store', [ClaimController::class, 'store'])->name('claims.store');
-        Route::get('claims-history', [ClaimController::class, 'index'])->name('claims.index');
-        Route::post('claims/schedule', [ClaimController::class, 'schedule'])->name('claims.schedule');
-        Route::get('/claims/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('claims.timeline_html');
+        // 🌟 領取管理資源群組 (Claims & Handover)
+        // 採用資源嵌套與具名路由，確保 URL 結構語義化
+        Route::prefix('claims')->name('claims.')->group(function () {
+            Route::get('/', [ClaimController::class, 'index'])->name('index'); // 歷史紀錄
+            Route::get('/create', [ClaimController::class, 'createClaim'])->name('create');
+            Route::post('/store', [ClaimController::class, 'store'])->name('store');
+            Route::post('/schedule', [ClaimController::class, 'schedule'])->name('schedule');
+            Route::get('/{id}/process', [ClaimController::class, 'process'])->name('process');
+            Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
 
-        // 🌟🌟🌟 這裡就是剛才缺少的 Process 路由！補上了！ 🌟🌟🌟
-        Route::get('/claims/{id}/process', [ClaimController::class, 'process'])->name('claims.process');
+            // 🌟 核心：最終結案動作 (POST)
+            // 對應 Blade: route('staff.claims.complete', $match->id)
+            Route::post('/{id}/complete', [ClaimController::class, 'completeHandover'])->name('complete');
+        });
 
-        // 🌟 最終領取確認：只有登入的 Staff 能執行結案動作
-        Route::post('complete-handover/{id}', [ClaimController::class, 'completeHandover'])->name('handover.complete');
-
-        // 優惠券管理
+        // 獎勵系統
         Route::resource('vouchers', VoucherController::class)->only(['index', 'store', 'destroy']);
 
-        // 輔助工具
+        // 倉庫管理輔助工具
         Route::get('check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('check-slots');
     });
 });
@@ -111,7 +114,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
 });
 
-// --- 6. 身份驗證與 OTP 重設密碼 ---
+// --- 6. 身份驗證與密碼重設 ---
 require __DIR__.'/auth.php';
 
 Route::middleware('guest')->group(function () {

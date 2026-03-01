@@ -53,6 +53,7 @@ class PickupController extends Controller
             $match->update([
                 'is_confirmed' => true,
                 'confirmed_at' => now(),
+                'status'       => 'Confirmed', // 🌟 新增：讓系統狀態明確變成已確認
             ]);
 
             // 2. 生成 QR Code 圖片資料
@@ -64,25 +65,27 @@ class PickupController extends Controller
              * 這是為了將 QrCode 物件轉為純字串數據，避免 Symfony Mailer 報出 
              * "must be a string, a resource... (got HtmlString)" 的錯誤
              */
-            $qrRaw = (string) QrCode::format('png')
+            $qrRaw = (string) \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
                         ->size(400)
                         ->margin(1)
                         ->color(15, 23, 42)
                         ->generate($verifyLink);
 
             // 3. 寄出正式的領取憑證信 (Email #2)
-            // 使用內聯圖片技術 (CID)，支援旅客離線查看憑證
-            Mail::to($match->lostItem->passenger_email)->send(
-                new PickupPassMail($match, $qrRaw)
+            // 防呆：如果沒填信箱，發到你的測試信箱
+            $passengerEmail = $match->lostItem->passenger_email ?? 'chiabx-wp22@student.tarc.edu.my';
+            
+            \Illuminate\Support\Facades\Mail::to($passengerEmail)->send(
+                new \App\Mail\PickupPassMail($match, $qrRaw)
             );
 
-            // 4. 成功後導向智能驗證路由 (網頁顯示 QR Code)
+            // 4. 成功後導向智能驗證路由 (網頁顯示 QR Code 收據)
             return redirect()->route('pickup.verify', ['token' => $token])
                              ->with('success', 'Thank you! Your pickup has been confirmed and a digital pass was sent to your email.');
 
         } catch (\Exception $e) {
             // 記錄錯誤日誌，以便開發者調試
-            Log::error("Pickup Confirmation Error: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Pickup Confirmation Error: " . $e->getMessage());
             
             return back()->with('error', 'An error occurred while sending your pass. Please try again or check your history.');
         }
@@ -96,7 +99,15 @@ class PickupController extends Controller
      */
     public function rejectAppointment($token)
     {
+        // 1. 找到這筆紀錄
         $match = MatchRecord::where('verification_token', $token)->firstOrFail();
+
+        // 2. 🌟 攔截邏輯：如果已經確認過預約，不准再 Reject
+        if ($match->is_confirmed) {
+            return redirect()->route('pickup.verify', ['token' => $token])
+                            ->with('info', 'This appointment is already confirmed. You can view your pickup pass below.');
+        }
+
         return view('passenger.appointment_rejected', compact('match'));
     }
 
@@ -105,17 +116,24 @@ class PickupController extends Controller
      */
     public function submitProposal(Request $request, $token)
     {
+        // 1. 驗證輸入：建議時間必須是「未來」
         $request->validate([
-            'suggested_time_1' => 'required|date',
-            'suggested_time_2' => 'nullable|date',
+            'suggested_time_1' => 'required|date|after:now', // 🌟 確保選的是未來時間
+            'suggested_time_2' => 'nullable|date|after:now',
             'suggested_remarks' => 'nullable|string|max:500',
         ]);
 
         $match = MatchRecord::where('verification_token', $token)->firstOrFail();
 
-        // 更新資料庫
+        // 2. 🌟 狀態檢查：如果已經 Confirm，禁止修改
+        if ($match->is_confirmed) {
+            return redirect()->route('pickup.verify', ['token' => $token])
+                            ->with('error', 'Confirmed appointments cannot be modified.');
+        }
+
+        // 3. 更新資料庫
         $match->update([
-            'appointment_at' => null,     
+            'appointment_at' => null,     // 清空舊預約時間
             'appointment_venue' => null,  
             'status' => 'Reschedule Requested',
             'is_confirmed' => false,
@@ -123,10 +141,11 @@ class PickupController extends Controller
             'suggested_time_2' => $request->suggested_time_2,
             'suggested_remarks' => $request->suggested_remarks,
             'rejected_at' => now(),       
-            'verification_token' => \Illuminate\Support\Str::random(40), // 換掉 Token 確保安全
+            // 🌟 核心安全：換掉 Token。舊郵件的連結會因為找不到這個 token 而失效 (404)
+            'verification_token' => \Illuminate\Support\Str::random(40), 
         ]);
 
-        // 直接返回同一個視圖，但帶上 success 變數，畫面就會變成「綠色勾勾」
+        // 4. 返回成功畫面（綠色勾勾）
         return view('passenger.appointment_rejected', [
             'match' => $match,
             'success' => true
