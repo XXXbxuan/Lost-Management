@@ -26,6 +26,7 @@
 
                 <div class="md:col-span-2 bg-white shadow-sm rounded-lg p-6">
                     
+                    {{-- 狀況 1：還沒預約時間 --}}
                     @if(is_null($match->appointment_at))
                         
                         @if($match->suggested_time_1 || $match->suggested_time_2)
@@ -86,7 +87,6 @@
                                     dateInput.value = datePart;
                                     timeInput.value = timePart;
                                     
-                                    // 閃爍綠色提示
                                     dateInput.classList.add('ring-2', 'ring-green-500', 'border-green-500');
                                     timeInput.classList.add('ring-2', 'ring-green-500', 'border-green-500');
                                     setTimeout(() => {
@@ -97,6 +97,7 @@
                             }
                         </script>
                         @endif
+                        
                         <h3 class="text-lg font-bold text-blue-800 mb-4">📅 Step 1: Schedule Pickup</h3>
                         <p class="text-sm text-gray-500 mb-6">Please contact the passenger and agree on a pickup time.</p>
 
@@ -104,7 +105,7 @@
                             <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm">
                                 <div class="flex">
                                     <div class="flex-shrink-0">
-                                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
                                     </div>
                                     <div class="ml-3">
                                         <h3 class="text-sm font-medium text-red-800">Oops! Please fix these errors:</h3>
@@ -138,6 +139,7 @@
                             </button>
                         </form>
 
+                    {{-- 狀況 2：預約了，等待旅客 Email 確認 --}}
                     @elseif(!$match->is_confirmed)
                         <div class="text-center py-8">
                             <div class="text-5xl mb-4">📩</div>
@@ -153,39 +155,73 @@
                             </div>
                         </div>
 
+                    {{-- 🌟 狀況 3：旅客已確認，進入 QR Code 掃描與最終結案流程 --}}
                     @else
-                        <h3 class="text-lg font-bold text-green-800 mb-4">🏁 Step 2: Final Handover</h3>
-                        <div class="bg-green-100 text-green-800 px-4 py-2 rounded mb-6 text-sm flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                            User confirmed arrival for <strong>{{ $match->appointment_at->format('d M, h:i A') }}</strong>.
-                        </div>
-
-                        <form action="{{ route('staff.claims.store') }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="lostId" value="{{ $lostItem->id }}">
-                            <input type="hidden" name="foundId" value="{{ $foundItem->id }}">
-                            <input type="hidden" name="claimerName" value="{{ $lostItem->passenger_name }}">
-                            <input type="hidden" name="claimerPhone" value="{{ $lostItem->passenger_phone }}">
+                        
+                        {{-- 🔑 3A：檢查是否從照片對比圖 (verify_action) 帶著鑰匙回來 --}}
+                        @if(request('step') === 'enter_ic')
                             
-                            <div class="mb-6">
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Verify Identity Document (IC / Passport) <span class="text-red-500">*</span></label>
-                                <input type="text" name="claimerIcPassport" required class="w-full rounded border-gray-300 shadow-sm text-lg" placeholder="e.g. 990101-14-xxxx">
+                            <h3 class="text-lg font-bold text-green-800 mb-4">🏁 Step 3: Final Handover</h3>
+                            <div class="bg-green-100 text-green-800 px-4 py-2 rounded mb-6 text-sm flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                Photos Verified. Proceed to check physical ID.
                             </div>
 
-                            <div class="flex items-start mb-6 bg-gray-50 p-3 border border-gray-200">
-                                <div class="flex items-center h-5">
-                                    <input id="confirm" name="confirm_handover" type="checkbox" required class="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-400 rounded-none bg-white">
+                            <form action="{{ route('staff.claims.complete', $match->id) }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="lostId" value="{{ $lostItem->id }}">
+                                <input type="hidden" name="foundId" value="{{ $foundItem->id }}">
+                                <input type="hidden" name="claimerName" value="{{ $lostItem->passenger_name }}">
+                                <input type="hidden" name="claimerPhone" value="{{ $lostItem->passenger_phone }}">
+                                
+                                <div class="mb-6">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Verify Identity Document (IC / Passport) <span class="text-red-500">*</span></label>
+                                    <input type="text" name="claimerIcPassport" required class="w-full rounded border-gray-300 shadow-sm text-lg" placeholder="e.g. 990101-14-xxxx">
                                 </div>
-                                <div class="ml-3 text-sm">
-                                    <label for="confirm" class="font-bold text-gray-700">Confirmation of Handover</label>
-                                    <p class="text-gray-500">I confirm that I have verified the identity and handed over the item.</p>
-                                </div>
-                            </div>
 
-                            <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 shadow-lg transition transform hover:scale-105">
-                                ✅ Complete Handover
-                            </button>
-                        </form>
+                                <div class="flex items-start mb-6 bg-gray-50 p-3 border border-gray-200">
+                                    <div class="flex items-center h-5">
+                                        <input id="confirm" name="confirm_handover" type="checkbox" required class="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-400 rounded-none bg-white">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="confirm" class="font-bold text-gray-700">Confirmation of Handover</label>
+                                        <p class="text-gray-500">I confirm that I have verified the identity and handed over the item.</p>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 shadow-lg transition transform hover:scale-105">
+                                    ✅ Complete Handover
+                                </button>
+                            </form>
+
+                        {{-- 📡 3B：還沒鑰匙，顯示雷達等待畫面並啟動掃描監聽 --}}
+                        @else
+                            
+                            <div class="bg-slate-50 p-12 rounded-2xl border-2 border-dashed border-slate-300 text-center">
+                                <div class="animate-pulse mb-6">
+                                    <i class="fas fa-qrcode text-6xl text-slate-400"></i>
+                                </div>
+                                <h3 class="text-2xl font-black text-slate-800 mb-2">Waiting for Passenger QR Code</h3>
+                                <p class="text-slate-500 font-medium">
+                                    Please use your mobile device (logged in as Staff) to scan the passenger's digital pass.
+                                </p>
+                            </div>
+                            
+                            <script>
+                                setInterval(function() {
+                                    fetch('{{ route('staff.claims.check_scan') }}?current_id={{ $match->id }}')
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if (data.status === 'success' && data.redirect_url) {
+                                                // 🚀 掃描成功！自動跳轉到對比圖頁面
+                                                window.location.href = data.redirect_url;
+                                            }
+                                        });
+                                }, 2000); 
+                            </script>
+
+                        @endif
+
                     @endif
 
                 </div>

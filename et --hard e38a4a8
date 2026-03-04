@@ -1,0 +1,86 @@
+[33mec6b476[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mjx-new-feature[m[33m, [m[1;31morigin/jx-new-feature[m[33m)[m HEAD@{0}: checkout: moving from e38a4a81a486a04191afbeafa1020a635306b174 to jx-new-feature
+[33me38a4a8[m HEAD@{1}: commit: done qr part part
+[33md9c3a90[m HEAD@{2}: checkout: moving from jx-new-feature to d9c3a90fdff3b734d0f5ccfcd557df3bf47bc633
+[33mec6b476[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mjx-new-feature[m[33m, [m[1;31morigin/jx-new-feature[m[33m)[m HEAD@{3}: commit: cant fix return
+[33md9c3a90[m HEAD@{4}: commit: last but havent need debug
+[33m538cb94[m HEAD@{5}: commit: before qr code to gmail
+[33mf3f6908[m HEAD@{6}: commit: qr code part 2 (2/3)done
+[33m9765410[m HEAD@{7}: commit: qr code part2 half
+[33m3176d12[m HEAD@{8}: commit: barcode part 1 done can show qr code at phone now
+[33m7473180[m HEAD@{9}: commit: before qr code part
+[33m58826f2[m HEAD@{10}: checkout: moving from new to jx-new-feature
+[33mf48af5f[m[33m ([m[1;31morigin/new[m[33m, [m[1;32mnew[m[33m)[m HEAD@{11}: checkout: moving from bx to new
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{12}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{13}: reset: moving to HEAD
+[33m58826f2[m HEAD@{14}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{15}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{16}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{17}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{18}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{19}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{20}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{21}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{22}: checkout: moving from new to jx-new-feature
+[33mf48af5f[m[33m ([m[1;31morigin/new[m[33m, [m[1;32mnew[m[33m)[m HEAD@{23}: checkout: moving from bx to new
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{24}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{25}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{26}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{27}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{28}: reset: moving to origin/bx
+[33m58826f2[m HEAD@{29}: checkout: moving from bx to bx
+[33m58826f2[m HEAD@{30}: checkout: moving from bx to bx
+[33m58826f2[m HEAD@{31}: checkout: moving from jx-new-feature to bx
+[33m58826f2[m HEAD@{32}: merge bx: Fast-forward
+[33m5f50029[m HEAD@{33}: checkout: moving from bx to jx-new-feature
+[33m58826f2[m HEAD@{34}: commit (merge): Merge branch 'jx-new-feature' into bx
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{35}: checkout: moving from jx-new-feature to bx
+[33m5f50029[m HEAD@{36}: reset: moving to HEAD
+[33m5f50029[m HEAD@{37}: checkout: moving from bx to jx-new-feature
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{38}: checkout: moving from jx-new-feature to bx
+[33m5f50029[m HEAD@{39}: commit: Update package-lock.json
+[33mf48af5f[m[33m ([m[1;31morigin/new[m[33m, [m[1;32mnew[m[33m)[m HEAD@{40}: checkout: moving from new to jx-new-feature
+[33mf48af5f[m[33m ([m[1;31morigin/new[m[33m, [m[1;32mnew[m[33m)[m HEAD@{41}: checkout: moving from bx to new
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{42}: checkout: moving from feature/admin-module to bx
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m HEAD@{43}: checkout: moving from bx to feature/admin-module
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{44}: reset: moving to HEAD
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m HEAD@{45}: commit: end today galf
+[33m61c8595[m HEAD@{46}: checkout: moving from feature/admin-module to bx
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m HEAD@{47}: checkout: moving from bx to feature/admin-module
+[33m61c8595[m HEAD@{48}: commit: part1 implementation done(包含华语版本)
+[33mcd86bf8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{49}: checkout: moving from feature/admin-module to bx
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m HEAD@{50}: checkout: moving from main to feature/admin-module
+[33m5f05fc4[m HEAD@{51}: checkout: moving from feature/admin-module to main
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m HEAD@{52}: checkout: moving from main to feature/admin-module
+[33m5f05fc4[m HEAD@{53}: checkout: moving from feature/admin-module to main
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m HEAD@{54}: commit: test(delete)
+[33m5f05fc4[m HEAD@{55}: checkout: moving from main to feature/admin-module
+[33m5f05fc4[m HEAD@{56}: checkout: moving from feature/admin-module to main
+[33m5f05fc4[m HEAD@{57}: checkout: moving from main to feature/admin-module
+[33m5f05fc4[m HEAD@{58}: checkout: moving from feature/admin-module to main
+[33m5f05fc4[m HEAD@{59}: checkout: moving from main to feature/admin-module
+[33m5f05fc4[m HEAD@{60}: merge feature/admin-module: Fast-forward
+[33m85afab8[m HEAD@{61}: checkout: moving from feature/admin-module to main
+[33m5f05fc4[m HEAD@{62}: commit: email part done
+[33m8ec2766[m HEAD@{63}: commit: claim half
+[33mdeb78ea[m HEAD@{64}: commit: match3.0
+[33m9ce92d4[m HEAD@{65}: commit: claim managemeent(2.0 without gemini pro))
+[33m7623e77[m HEAD@{66}: commit: match1.0 (gemini break)
+[33mc5c5af0[m HEAD@{67}: commit: found item and lost item request done
+[33m70ed5ea[m HEAD@{68}: commit: found item page
+[33m57f3e63[m HEAD@{69}: commit: Staff Module 2.0
+[33ma4fccc4[m HEAD@{70}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{71}: checkout: moving from feature/admin-module to main
+[33ma4fccc4[m HEAD@{72}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{73}: reset: moving to HEAD
+[33m85afab8[m HEAD@{74}: checkout: moving from feature/admin-module to main
+[33ma4fccc4[m HEAD@{75}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{76}: checkout: moving from feature/admin-module to main
+[33ma4fccc4[m HEAD@{77}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{78}: checkout: moving from feature/admin-module to main
+[33ma4fccc4[m HEAD@{79}: commit: staff module done
+[33m7cc73e7[m HEAD@{80}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{81}: checkout: moving from feature/admin-module to main
+[33m7cc73e7[m HEAD@{82}: commit: user and staff table
+[33m85afab8[m HEAD@{83}: checkout: moving from main to feature/admin-module
+[33m85afab8[m HEAD@{84}: Branch: renamed refs/heads/main to refs/heads/main
+[33m85afab8[m HEAD@{86}: commit (initial): Initial commit
