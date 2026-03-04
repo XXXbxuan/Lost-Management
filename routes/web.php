@@ -46,7 +46,6 @@ Route::prefix('pickup')->group(function () {
     Route::post('/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
     // 🌟 核心：智能分流入口 (QR Code 掃描後指向此處)
-    // 雖然在公開區，但 Controller 會判斷 Auth 狀態來顯示「憑證」或「 Staff 比對頁」
     Route::get('/verify/{token}', [ClaimController::class, 'smartVerify'])->name('pickup.verify');
 
     // 旅客拒絕預約與提交新建議時間
@@ -86,17 +85,23 @@ Route::middleware('auth')->group(function () {
         Route::post('match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('match.unmatch');
         
         // 🌟 領取管理資源群組 (Claims & Handover)
-        // 採用資源嵌套與具名路由，確保 URL 結構語義化
         Route::prefix('claims')->name('claims.')->group(function () {
-            Route::get('/', [ClaimController::class, 'index'])->name('index'); // 歷史紀錄
+            Route::get('/', [ClaimController::class, 'index'])->name('index'); 
             Route::get('/create', [ClaimController::class, 'createClaim'])->name('create');
             Route::post('/store', [ClaimController::class, 'store'])->name('store');
             Route::post('/schedule', [ClaimController::class, 'schedule'])->name('schedule');
+            
+            // 🌟 新增：雷達監聽器 (必須放在有參數的路由上方，避免被當成 ID)
+            Route::get('/check-scan', [ClaimController::class, 'checkRecentScan'])->name('check_scan');
+
             Route::get('/{id}/process', [ClaimController::class, 'process'])->name('process');
+            
+            // 🌟 新增：顯示照片對比圖
+            Route::get('/{id}/verify-action', [ClaimController::class, 'verifyAction'])->name('verify_action');
+            
             Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
 
-            // 🌟 核心：最終結案動作 (POST)
-            // 對應 Blade: route('staff.claims.complete', $match->id)
+            // 最終結案動作
             Route::post('/{id}/complete', [ClaimController::class, 'completeHandover'])->name('complete');
         });
 

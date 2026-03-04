@@ -59,7 +59,7 @@
                 @endif
                 <form action="{{ route('pickup.propose', $match->verification_token) }}" method="POST" class="space-y-4"></form>
 
-                <form action="{{ route('pickup.propose', $match->verification_token) }}" method="POST" class="space-y-4">
+                <form action="{{ route('pickup.propose', ['token' => $match->verification_token]) }}" method="POST" class="space-y-4">                    
                     @csrf
                     
                     <div>

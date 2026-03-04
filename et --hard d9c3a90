@@ -1,0 +1,33 @@
+[33mec6b476[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mjx-new-feature[m[33m, [m[1;31morigin/jx-new-feature[m[33m)[m cant fix return
+[33md9c3a90[m last but havent need debug
+[33m538cb94[m before qr code to gmail
+[33mf3f6908[m qr code part 2 (2/3)done
+[33m9765410[m qr code part2 half
+[33m3176d12[m barcode part 1 done can show qr code at phone now
+[33m7473180[m before qr code part
+[33m58826f2[m Merge branch 'jx-new-feature' into bx
+[33m5f50029[m Update package-lock.json
+[33mf48af5f[m[33m ([m[1;31morigin/new[m[33m, [m[1;32mnew[m[33m)[m hihi
+[33ma5a681f[m Update login.blade.php
+[33m8e224b3[m status found passenger
+[33m271d32c[m update
+[33m65cfb5b[m except forgot password
+[33m88e1d28[m[33m ([m[1;31morigin/bx[m[33m, [m[1;32mbx[m[33m)[m end today galf
+[33mb0e883e[m login with google
+[33m61c8595[m part1 implementation done(包含华语版本)
+[33m8701bb4[m nice
+[33mcd86bf8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Merge pull request #2 from XXXbxuan/revert-1-feature/admin-module
+[33mae8126e[m Revert "test(delete)"
+[33m4dae63c[m Merge pull request #1 from XXXbxuan/feature/admin-module
+[33m40a758d[m[33m ([m[1;31morigin/feature/admin-module[m[33m, [m[1;32mfeature/admin-module[m[33m)[m test(delete)
+[33m5f05fc4[m email part done
+[33m8ec2766[m claim half
+[33mdeb78ea[m match3.0
+[33m9ce92d4[m claim managemeent(2.0 without gemini pro))
+[33m7623e77[m match1.0 (gemini break)
+[33mc5c5af0[m found item and lost item request done
+[33m70ed5ea[m found item page
+[33m57f3e63[m Staff Module 2.0
+[33ma4fccc4[m staff module done
+[33m7cc73e7[m user and staff table
+[33m85afab8[m Initial commit

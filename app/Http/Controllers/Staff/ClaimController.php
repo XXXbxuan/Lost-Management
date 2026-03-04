@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
@@ -13,6 +12,7 @@ use App\Mail\AppointmentConfirmation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache; // 🌟 必須引入 Cache
 use Illuminate\Support\Str;
 
 class ClaimController extends Controller
@@ -23,85 +23,68 @@ class ClaimController extends Controller
     public function createClaim(Request $request)
     {
         $lostId = $request->query('lost_id');
-
-        // 🌟 統一使用 lostItem
         $lostItem = LostItemReport::findOrFail($lostId);
-
         $match = MatchRecord::where('lostId', $lostItem->id)
             ->where('status', 'Verified')
             ->firstOrFail();
-
         $foundItem = FoundItem::findOrFail($match->foundId);
 
         return view('staff.claims.process', compact('lostItem', 'foundItem', 'match'));
     }
 
     /**
-     * 🌟🌟🌟 新增：處理既有的配對紀錄 (包含 Reschedule 狀態) 🌟🌟🌟
-     * 點擊 Manage Claim 時會進入這裡
+     * 🌟 2. 處理既有的配對紀錄 (包含 Step 2 雷達等待頁面)
      */
     public function process($id)
     {
-        // 1. 直接透過 Match ID 找到這筆配對紀錄
         $match = MatchRecord::findOrFail($id);
-
-        // 2. 順著紅線 (lostId 和 foundId) 找出對應的遺失物與拾獲物
         $lostItem = LostItemReport::findOrFail($match->lostId);
         $foundItem = FoundItem::findOrFail($match->foundId);
 
-        // 3. 把資料打包，送到你貼好藍色提示框的 process 畫面
+        // 🌟 物理隔離：員工進入此頁面，立刻清空舊的掃描快取，避免幽靈跳轉
+        Cache::forget('staff_scan_' . auth()->id());
+
         return view('staff.claims.process', compact('match', 'lostItem', 'foundItem'));
     }
-    
+
     /**
-     * 2. 設定預約時間並發送第一封確認信 (Email #1)
+     * 3. 設定預約時間並發送確認信
      */
     public function schedule(Request $request)
     {
-        // 1. 修正驗證規則：允許選擇「今天 (today)」，不要直接在這裡用 now 擋掉
+        // ... (保持你原本的 schedule 邏輯不變) ...
         $request->validate([
             'match_id'         => 'required',
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required',
         ]);
 
-        // 2. 將日期和時間合體
         $fullDateTimeString = $request->appointment_date . ' ' . $request->appointment_time;
         
-        // 3. 🌟 精準時間驗證：檢查「合體後的時間」是不是已經過去了
         $fullDateTime = \Carbon\Carbon::parse($fullDateTimeString);
         if ($fullDateTime->isPast()) {
             return back()->withErrors(['appointment_time' => 'Oops! The time has already passed. Please select a future time.']);
         }
 
-        // --- 驗證通過，繼續原本的流程 ---
         $match = MatchRecord::findOrFail($request->match_id);
         $lostItem = LostItemReport::findOrFail($match->lostId);
-
         $token = strtoupper(Str::random(6));
 
-        // 更新預約資訊
         $match->update([
             'appointment_at'     => $fullDateTimeString,
             'verification_token' => $token,
             'is_confirmed'       => false,
-            // 如果原本是 Reschedule Requested，排好時間後我們把它改回 Verified 等待確認
             'status'             => 'Verified', 
         ]);
 
-        // 自動生成驗證連結
         $confirmLink = route('pickup.confirm', ['token' => $token]);
-
         $passengerEmail = $lostItem->passenger_email ?? 'chiabx-wp22@student.tarc.edu.my';
 
         try {
             Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $confirmLink));
             $message = 'Appointment scheduled! Verification link sent to ' . $passengerEmail;
         } catch (\Exception $e) {
-            \Log::error('Email #1 Failed', [
-                'to' => $passengerEmail,
-                'error' => $e->getMessage(),
-            ]);
+            \Log::error('Email #1 Failed', ['to' => $passengerEmail, 'error' => $e->getMessage()]);
             $message = 'Appointment set, but email failed: ' . $e->getMessage();
         }
 
@@ -109,7 +92,7 @@ class ClaimController extends Controller
     }
 
     /**
-     * 3. 智能驗證入口 (QR Code 指向此路由)
+     * 🌟 4. 智能驗證入口 (QR Code 掃描後) - 手機與電腦分工
      */
     public function smartVerify($token)
     {
@@ -117,73 +100,116 @@ class ClaimController extends Controller
                     ->with(['lostItem', 'foundItem'])
                     ->firstOrFail();
 
-        // 🌟 優化後的判斷：
-        // 1. 先確認是否登入
-        // 2. 使用 strtolower 將角色轉為小寫，並同時支援 'admin' 和 'staff'
         if (auth()->check()) {
-            $userRole = strtolower(auth()->user()->role); // 轉為小寫比較安全
+            $userRole = strtolower(auth()->user()->role); 
             
+            // 判斷是否為工作人員掃描
             if ($userRole === 'admin' || $userRole === 'staff') {
                 
+                // 🚫 防呆：如果已經領取，導向你現有的已領取頁面
                 if ($match->status === 'Claimed') {
                     return view('staff.claims.qr_status_claimed', compact('match'));
                 }
 
-                return view('staff.claims.verify_action', compact('match'));
+                // ✅ 發送雷達訊號：把這筆 Match ID 存進快取
+                Cache::put('staff_scan_' . auth()->id(), $match->id, now()->addMinutes(2));
+
+                // 🌟 手機端顯示成功提示 (請確保有建立 scan_success.blade.php)
+                return view('staff.claims.scan_success', compact('match'));
             }
         }
 
-        // --- 否則一律顯示旅客畫面 ---
+        // --- 旅客視角 ---
         if ($match->status === 'Claimed') {
             return view('passenger.claims.pickup_success_receipt', compact('match'));
         }
 
         return view('passenger.claims.qr_status', compact('match'));
     }
+
     /**
-     * 4. 最終領取確認 (Handover)
+     * 🌟 5. 電腦端：雷達監聽器 (必須補上這個方法，雷達才有用)
+     */
+    public function checkRecentScan(Request $request)
+    {
+        $staffId = auth()->id();
+        $cacheKey = 'staff_scan_' . $staffId;
+
+        // 🌟 讀取後立刻刪除 (pull)，保證不重複跳轉
+        $scannedId = Cache::pull($cacheKey);
+
+        if ($scannedId) {
+            $currentId = (int)$request->query('current_id', 0);
+
+            // 🌟 隔離比對：只有手機掃的 ID 跟電腦現在看的 ID 對上了，才准跳轉
+            if ($currentId > 0 && $scannedId === $currentId) {
+                return response()->json([
+                    'status' => 'success',
+                    // 🚀 核心：跳轉到你現有的 verify_action (對比圖) 頁面！
+                    'redirect_url' => route('staff.claims.verify_action', $scannedId)
+                ]);
+            }
+        }
+        return response()->json(['status' => 'waiting']);
+    }
+
+    /**
+     * 🌟 6. 顯示對比圖 (這就是你原本就有的 verify_action 頁面)
+     */
+    public function verifyAction($id)
+    {
+        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
+        
+        // 確保不會報錯
+        return view('staff.claims.verify_action', [
+            'match' => $match,
+            'lostItem' => $match->lostItem,
+            'foundItem' => $match->foundItem,
+        ]);
+    }
+
+    /**
+     * 7. 最終領取確認 (Handover)
      */
     public function completeHandover(Request $request, $id)
     {
-        // 1. 預載關聯，避免 N+1 問題
+        // 驗證 IC 欄位
+        $request->validate([
+            'passenger_ic' => 'required|string|max:50',
+        ]);
+
         $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
 
-        // 🌟 安全檢查：如果已經結案了，就不要再跑一次
         if ($match->status === 'Claimed') {
             return redirect()->route('staff.claims.index')
                             ->with('info', 'This case has already been closed.');
         }
 
         try {
-            // 2. 使用資料庫事務，確保「要嘛全成功，要嘛全失敗」
-            \DB::transaction(function () use ($match) {
-                
-                // A. 更新 Match 紀錄：標記狀態、記錄核准員工與時間
+            DB::transaction(function () use ($match, $request) {
+                // 更新 Match 紀錄並寫入 IC
                 $match->update([
-                    'status'     => 'Claimed',
-                    'verifiedBy' => auth()->id(), // 🌟 記錄是誰核對的 (Audit)
-                    'verifiedAt' => now(),       // 🌟 記錄確切領取時間
+                    'status'       => 'Claimed',
+                    'verifiedBy'   => auth()->id(), 
+                    'verifiedAt'   => now(), 
+                    'passenger_ic' => $request->passenger_ic, // 🌟 存入剛輸入的 IC
                 ]);
 
-                // B. 同步更新相關物品狀態 (使用 Eloquent 關聯更新)
                 $match->lostItem->update(['status' => 'Claimed']);
                 $match->foundItem->update(['status' => 'Claimed']);
 
-                // C. 寫入 Admin 操作日誌 (展現系統的嚴謹性)
-                \App\Models\AdminActionLog::create([
+                AdminActionLog::create([
                     'admin_name'  => auth()->user()->name,
                     'action_type' => 'ITEM_HANDOVER_SUCCESS',
                     'target_name' => "Passenger: " . ($match->lostItem->passenger_name ?? 'Unknown'),
-                    'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification."
+                    'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification. IC: {$request->passenger_ic}"
                 ]);
             });
 
-            // 3. 成功後跳轉 (建議跳轉到 Claims List 或 Dashboard)
             return redirect()->route('staff.claims.index') 
                             ->with('success', '✅ Handover successful. The case is now permanently closed!');
 
         } catch (\Exception $e) {
-            // 4. 錯誤處理與日誌記錄
             \Log::error("Critical Handover Error: " . $e->getMessage());
             return back()->with('error', 'Critical Error: Data update failed. Please check system logs.');
         }
