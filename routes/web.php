@@ -108,13 +108,27 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- 5. 管理員專屬 (Admin Only) ---
+// --- 5. 管理员专属 (Admin Only) ---
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    
+// Inside Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    
+    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+    
+    // 🌟 NEW: Export Data Route
+    Route::get('/export/found-items', [StaffController::class, 'exportFoundItems'])->name('export.found_items');
+    
+    // Points to the 'dashboard' function we just added to StaffController
+    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+
+    // Existing Staff Management
     Route::resource('staff', StaffController::class);
+    
+    // Activity Logs
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
 });
 
-// --- 6. 身份驗證與密碼重設 ---
+//reset password verify and forgot password
 require __DIR__.'/auth.php';
 
 Route::middleware('guest')->group(function () {

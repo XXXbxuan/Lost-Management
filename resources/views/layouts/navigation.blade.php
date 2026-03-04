@@ -29,6 +29,10 @@
 
                     {{-- ADMIN ONLY --}}
                     @if(Auth::user()->role === 'Admin')
+                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                            📊 {{ __('Analytics Chart') }}
+                        </x-nav-link>
+                        
                         <x-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
                             {{ __('Staff Management') }}
                         </x-nav-link>
@@ -50,7 +54,6 @@
                         <x-nav-link :href="route('staff.lost-items.index')" :active="request()->routeIs('staff.lost-items.*')" class="text-red-600 font-bold">
                             {{ __('Lost Reports') }}
                         </x-nav-link>
-                        
                     @endif
                     
                 </div>
@@ -115,6 +118,19 @@
                 </x-responsive-nav-link>
             @endif
             
+            {{-- NEW: Added Admin Links to Mobile Menu too! --}}
+            @if(Auth::user()->role === 'Admin')
+                <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                    📊 {{ __('Analytics Chart') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
+                    {{ __('Staff Management') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.logs.index')" :active="request()->routeIs('admin.logs.index')">
+                    {{ __('Audit Logs') }}
+                </x-responsive-nav-link>
+            @endif
+
             @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
                 <x-responsive-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                     {{ __('Vouchers') }}

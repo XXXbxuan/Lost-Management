@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\FoundItem;
+use App\Models\User;
 use App\Http\Requests\StoreFoundItemRequest;
 use App\Services\FoundItemService;
 use Illuminate\Http\Request;
@@ -46,6 +47,11 @@ class FoundItemController extends Controller
     {
         $data = $request->validated();
 
+        // 验证新增的 email 字段
+        $request->validate([
+            'finder_email' => 'nullable|email'
+        ]);
+
         // =========================================================================
         // 🔥 [新增] 后端强制检查：防止 Slot 重复占用
         // =========================================================================
@@ -83,9 +89,26 @@ class FoundItemController extends Controller
             $request->file('image')
         );
 
+        // =========================================================================
+        // 🎁 NEW LOGIC: Award Points to the Finder
+        // =========================================================================
+        $successMessage = 'Found item registered successfully.';
+
+        if ($request->filled('finder_email')) {
+            // Find the user by their email
+            $finder = User::where('email', $request->finder_email)->first();
+
+            // If a matching user is found, give them points
+            if ($finder) {
+                $finder->increment('points', 100); // Give 50 points
+                $successMessage = 'Item saved successfully and 50 points were awarded to ' . $finder->name . '!';
+            }
+        }
+
         return redirect()->route('staff.found-items.index')
-                        ->with('success', 'Found item registered successfully.');
+                        ->with('success', $successMessage);
     }
+    
     public function checkOccupiedSlots(Request $request)
     {
         $zone = $request->query('zone');  // 例如 "GEN"
