@@ -127,6 +127,28 @@ class ClaimController extends Controller
         return view('passenger.claims.qr_status', compact('match'));
     }
 
+    public function handover(Request $request, $id)
+    {
+        // 統一抓取資料，兩階段共用
+        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
+
+        // 💡 邏輯切換：如果網址有 ?step=2，就顯示 Stage 2 (填寫 IC)
+        if ($request->query('step') == 2) {
+            return view('staff.claims.enter_ic', [
+                'match' => $match,
+                'lostItem' => $match->lostItem,
+                'foundItem' => $match->foundItem
+            ]);
+        }
+
+        // 預設顯示 Stage 1 (照片與存放位置對比)
+        return view('staff.claims.verify_action', [
+            'match' => $match,
+            'lostItem' => $match->lostItem,
+            'foundItem' => $match->foundItem
+        ]);
+    }
+
     /**
      * 🌟 5. 電腦端：雷達監聽器 (必須補上這個方法，雷達才有用)
      */
@@ -134,19 +156,16 @@ class ClaimController extends Controller
     {
         $staffId = auth()->id();
         $cacheKey = 'staff_scan_' . $staffId;
-
-        // 🌟 讀取後立刻刪除 (pull)，保證不重複跳轉
         $scannedId = Cache::pull($cacheKey);
 
         if ($scannedId) {
             $currentId = (int)$request->query('current_id', 0);
 
-            // 🌟 隔離比對：只有手機掃的 ID 跟電腦現在看的 ID 對上了，才准跳轉
             if ($currentId > 0 && $scannedId === $currentId) {
                 return response()->json([
                     'status' => 'success',
-                    // 🚀 核心：跳轉到你現有的 verify_action (對比圖) 頁面！
-                    'redirect_url' => route('staff.claims.verify_action', $scannedId)
+                    // 🚀 核心改動：掃描後，先飛去 handover 的 Stage 1 (預設頁面)
+                    'redirect_url' => route('staff.claims.handover', $scannedId)
                 ]);
             }
         }
@@ -156,64 +175,45 @@ class ClaimController extends Controller
     /**
      * 🌟 6. 顯示對比圖 (這就是你原本就有的 verify_action 頁面)
      */
-    public function verifyAction($id)
-    {
-        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
-        
-        // 確保不會報錯
-        return view('staff.claims.verify_action', [
-            'match' => $match,
-            'lostItem' => $match->lostItem,
-            'foundItem' => $match->foundItem,
-        ]);
-    }
+
 
     /**
      * 7. 最終領取確認 (Handover)
      */
     public function completeHandover(Request $request, $id)
     {
-        // 驗證 IC 欄位
         $request->validate([
             'passenger_ic' => 'required|string|max:50',
         ]);
 
         $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
+        
+        // ... (這裡維持你原本的 DB::transaction 邏輯) ...
+        // 成功後 redirect 到 index 並帶上 success 訊息
+        
+        DB::transaction(function () use ($match, $request) {
+            $match->update([
+                'status'       => 'Claimed',
+                'verifiedBy'   => auth()->id(), 
+                'verifiedAt'   => now(), 
+                'passenger_ic' => $request->passenger_ic,
+            ]);
 
-        if ($match->status === 'Claimed') {
-            return redirect()->route('staff.claims.index')
-                            ->with('info', 'This case has already been closed.');
-        }
+            $match->lostItem->update(['status' => 'Claimed']);
+            $match->foundItem->update(['status' => 'Claimed']);
 
-        try {
-            DB::transaction(function () use ($match, $request) {
-                // 更新 Match 紀錄並寫入 IC
-                $match->update([
-                    'status'       => 'Claimed',
-                    'verifiedBy'   => auth()->id(), 
-                    'verifiedAt'   => now(), 
-                    'passenger_ic' => $request->passenger_ic, // 🌟 存入剛輸入的 IC
-                ]);
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name,
+                'action_type' => 'ITEM_HANDOVER_SUCCESS',
+                'target_name' => "Passenger: " . ($match->lostItem->passenger_name ?? 'Unknown'),
+                'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification. IC: {$request->passenger_ic}"
+            ]);
+        });
 
-                $match->lostItem->update(['status' => 'Claimed']);
-                $match->foundItem->update(['status' => 'Claimed']);
-
-                AdminActionLog::create([
-                    'admin_name'  => auth()->user()->name,
-                    'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                    'target_name' => "Passenger: " . ($match->lostItem->passenger_name ?? 'Unknown'),
-                    'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification. IC: {$request->passenger_ic}"
-                ]);
-            });
-
-            return redirect()->route('staff.claims.index') 
-                            ->with('success', '✅ Handover successful. The case is now permanently closed!');
-
-        } catch (\Exception $e) {
-            \Log::error("Critical Handover Error: " . $e->getMessage());
-            return back()->with('error', 'Critical Error: Data update failed. Please check system logs.');
-        }
+        return redirect()->route('staff.claims.index')->with('success', '✅ Handover successful!');
     }
+
+    
 
     /**
      * 5. 手動處理領取 (無 QR Code 情況下的手動輸入)

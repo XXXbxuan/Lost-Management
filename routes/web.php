@@ -41,14 +41,12 @@ Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'hand
 // 處理旅客 Email 確認與 QR Code 智能驗證分流
 // ====================================================
 Route::prefix('pickup')->group(function () {
-    // 旅客點擊 Email 按鈕後的預約確認流程
     Route::get('/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
     Route::post('/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
 
     // 🌟 核心：智能分流入口 (QR Code 掃描後指向此處)
     Route::get('/verify/{token}', [ClaimController::class, 'smartVerify'])->name('pickup.verify');
 
-    // 旅客拒絕預約與提交新建議時間
     Route::get('/reject/{token}', [PickupController::class, 'rejectAppointment'])->name('pickup.reject');
     Route::post('/propose/{token}', [PickupController::class, 'submitProposal'])->name('pickup.propose');
 });
@@ -75,11 +73,11 @@ Route::middleware('auth')->group(function () {
     // --- [Staff 工作人員端功能群組] ---
     Route::prefix('staff')->name('staff.')->group(function () {
         
-        // 資源管理：Found / Lost Items
+        // 資源管理
         Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store']);
         Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
 
-        // 匹配與驗證邏輯 (Match Verification)
+        // 匹配與驗證邏輯
         Route::get('match-verify/{lost_id}/{found_id}', [LostItemController::class, 'verify'])->name('match.verify');
         Route::post('match-verify/save', [LostItemController::class, 'storeMatch'])->name('match.store');
         Route::post('match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('match.unmatch');
@@ -91,24 +89,25 @@ Route::middleware('auth')->group(function () {
             Route::post('/store', [ClaimController::class, 'store'])->name('store');
             Route::post('/schedule', [ClaimController::class, 'schedule'])->name('schedule');
             
-            // 🌟 新增：雷達監聽器 (必須放在有參數的路由上方，避免被當成 ID)
+            // 🌟 雷達監聽器 (Ajax 檢查是否掃碼成功)
             Route::get('/check-scan', [ClaimController::class, 'checkRecentScan'])->name('check_scan');
 
+            // 🌟 階段 0：雷達等待頁面 (電腦顯示等待 QR Scan)
             Route::get('/{id}/process', [ClaimController::class, 'process'])->name('process');
             
-            // 🌟 新增：顯示照片對比圖
-            Route::get('/{id}/verify-action', [ClaimController::class, 'verifyAction'])->name('verify_action');
+            // 🌟 階段 1 & 2：合併交接流程
+            // 1. 預設訪問此路由顯示 Stage 1 (照片對比頁 verify_action)
+            // 2. 帶上 ?step=2 參數則顯示 Stage 2 (輸入 IC 頁 enter_ic)
+            Route::get('/{id}/handover', [ClaimController::class, 'handover'])->name('handover');
             
             Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
 
-            // 最終結案動作
+            // 最終結案動作 (POST)
             Route::post('/{id}/complete', [ClaimController::class, 'completeHandover'])->name('complete');
         });
 
-        // 獎勵系統
+        // 其他功能
         Route::resource('vouchers', VoucherController::class)->only(['index', 'store', 'destroy']);
-
-        // 倉庫管理輔助工具
         Route::get('check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('check-slots');
     });
 });

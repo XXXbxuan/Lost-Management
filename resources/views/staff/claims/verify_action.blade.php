@@ -2,84 +2,85 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-bold text-xl text-gray-800 leading-tight">
-                {{ __('Final Security Handover') }}
+                {{ __('👁️ Stage 1: Visual & Info Comparison') }}
             </h2>
-            <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-black rounded-full">
-                TOKEN VERIFIED
+            <span class="px-4 py-1 bg-amber-100 text-amber-700 text-xs font-black rounded-full uppercase">
+                Verification in Progress
             </span>
         </div>
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
+            
+            <div class="text-center mb-10">
+                <h3 class="text-2xl font-black text-slate-800">Double-Check Everything</h3>
+                <p class="text-slate-500">Ensure the reported item matches our physical inventory before proceeding.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                 
-                <div class="bg-slate-900 p-5 text-white flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                        <span class="text-sm font-black tracking-widest uppercase">Identity Verification</span>
+                {{-- 左邊：旅客報失資訊 --}}
+                <div class="bg-white rounded-[2.5rem] shadow-xl p-8 border-t-8 border-rose-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">👤</div>
+                    <span class="bg-rose-100 text-rose-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Passenger's Proof</span>
+                    
+                    <div class="mt-6 aspect-square rounded-[2rem] overflow-hidden border-4 border-slate-50 shadow-inner">
+                        <img src="{{ asset('storage/' . ($match->lostItem->image_path ?? $match->lostItem->image_url)) }}" 
+                             class="w-full h-full object-cover transition duration-500 hover:scale-110">
                     </div>
-                    <span class="text-xs font-mono opacity-60">MATCH_ID: #{{ $match->id }}</span>
+
+                    <div class="mt-8 space-y-4">
+                        <div class="bg-slate-50 p-4 rounded-2xl">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Item Name</p>
+                            <p class="text-lg font-bold text-slate-800">{{ $match->lostItem->item_name }}</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-2xl">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Description / Details</p>
+                            <p class="text-sm text-slate-600 leading-relaxed">{{ $match->lostItem->description ?? 'No extra details provided.' }}</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="p-8">
-                    <div class="grid grid-cols-2 gap-8 mb-10">
-                        <div class="relative">
-                            <div class="absolute -top-3 -left-3 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-md z-10 shadow-lg">
-                                REPORTED BY PASSENGER
-                            </div>
-                            <div class="group relative overflow-hidden rounded-2xl border-4 border-rose-50">
-                                <img src="{{ asset('storage/' . $match->lostItem->image_path) }}" 
-                                     class="w-full aspect-square object-cover transition duration-500 group-hover:scale-110">
-                            </div>
-                        </div>
-
-                        <div class="relative">
-                            <div class="absolute -top-3 -left-3 bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-md z-10 shadow-lg">
-                                FOUND BY STAFF
-                            </div>
-                            <div class="group relative overflow-hidden rounded-2xl border-4 border-blue-50">
-                                <img src="{{ asset('storage/' . $match->foundItem->image_path) }}" 
-                                     class="w-full aspect-square object-cover transition duration-500 group-hover:scale-110">
-                            </div>
-                        </div>
+                {{-- 右邊：系統入庫資訊 --}}
+                <div class="bg-white rounded-[2.5rem] shadow-xl p-8 border-t-8 border-blue-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">📦</div>
+                    <span class="bg-blue-100 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">System Record</span>
+                    
+                    <div class="mt-6 aspect-square rounded-[2rem] overflow-hidden border-4 border-slate-50 shadow-inner">
+                        <img src="{{ asset('storage/' . $match->foundItem->image_path) }}" 
+                             class="w-full h-full object-cover transition duration-500 hover:scale-110">
                     </div>
 
-                    <div class="bg-slate-50 border border-slate-100 rounded-3xl p-6 mb-8">
-                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Passenger Details</h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-xs text-slate-500">Legal Name</p>
-                                <p class="text-lg font-bold text-slate-800">{{ $match->lostItem->passenger_name }}</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-slate-500">IC / Passport Number</p>
-                                <p class="text-lg font-bold font-mono text-slate-800">{{ $match->lostItem->ic_number ?? 'N/A' }}</p>
-                            </div>
+                    <div class="mt-8 space-y-4">
+                        <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                            <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest">📍 Current Storage Location</p>
+                            <p class="text-xl font-black text-blue-800">{{ $match->foundItem->storage_location }}</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-2xl">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Found At</p>
+                            <p class="text-sm font-bold text-slate-800">{{ $match->foundItem->location_found }}</p>
                         </div>
                     </div>
-
-                    <div class="mb-8 space-y-3">
-                        <label class="flex items-center p-4 bg-emerald-50 rounded-2xl border border-emerald-100 cursor-pointer group">
-                            <input type="checkbox" required class="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-300">
-                            <span class="ml-3 text-sm font-bold text-emerald-800">I have verified the Passenger's Original IC/Passport.</span>
-                        </label>
-                    </div>
-
-                    <form action="{{ route('staff.claims.complete', $match->id) }}" method="POST">
-                        @csrf
-                        <button type="submit" 
-                                onclick="return confirm('WARNING: This action is permanent. Confirm item handover?')"
-                                class="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-                            <span class="text-xl">🤝</span>
-                            COMPLETE HANDOVER & CLOSE CASE
-                        </button>
-                    </form>
-
-                    <p class="text-center mt-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                        Handover will be logged for audit purposes
-                    </p>
                 </div>
+            </div>
+
+            {{-- 底部按鈕 --}}
+            <div class="flex flex-col items-center gap-4">
+                <div class="flex justify-center gap-6 w-full">
+                    <a href="{{ route('staff.claims.process', $match->id) }}" 
+                       class="px-10 py-4 bg-white text-slate-400 font-bold rounded-2xl border-2 border-slate-100 hover:bg-slate-50 transition">
+                        Cancel
+                    </a>
+                    
+                    {{-- ✅ 按下後去 Stage 2 --}}
+                    <a href="{{ route('staff.claims.handover', ['id' => $match->id, 'step' => 2]) }}" 
+                       class="px-12 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-2xl hover:bg-black transition transform hover:scale-105 flex items-center gap-3">
+                        CONFIRM MATCH - GO TO HANDOVER
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em]">Handover Protocol Stage 1 of 2</p>
             </div>
         </div>
     </div>
