@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/rewards', [DashboardController::class, 'showRewards'])->name('rewards');
         Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
         Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
+        Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
+        Route::post('/voucher/{id}/use', [DashboardController::class, 'useVoucher'])->name('voucher.use');
     });
 
     // --- [Staff 工作人員端功能群組] ---

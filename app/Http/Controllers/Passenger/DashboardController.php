@@ -9,6 +9,7 @@ use App\Models\FoundItem;
 use App\Models\Voucher;     // 👈 Import Voucher Model
 use App\Models\Redemption;  // 👈 Import Redemption Model
 use App\Models\User;        // 👈 Import User Model
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -64,5 +65,18 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Redemption Successful! You spent ' . $voucher->points . ' points.');
+    }
+
+    public function useVoucher($id)
+    {
+        // Find the redemption record using your exact Model
+        $redemption = Redemption::where('id', $id)
+            ->where('user_id', Auth::id()) // Security check
+            ->firstOrFail();
+
+        // Update the status
+        $redemption->update(['status' => 'Used']); 
+
+        return back()->with('success', 'Voucher applied successfully! Enjoy your reward.');
     }
 }

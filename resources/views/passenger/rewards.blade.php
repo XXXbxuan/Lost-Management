@@ -22,9 +22,10 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {{-- 1. MEMBERSHIP CARD (LEFT) --}}
+                {{-- 1. MEMBERSHIP CARD & HISTORY (LEFT) --}}
                 <div class="md:col-span-1 space-y-6">
-                    {{-- Blue Card --}}
+                    
+                    {{-- Blue Membership Card --}}
                     <div class="rounded-2xl shadow-xl text-white p-8 relative overflow-hidden" 
                          style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);">
                         <div class="relative z-10">
@@ -39,22 +40,54 @@
                         </div>
                     </div>
 
-                    {{-- My Redemption History (NEW!) --}}
+                    {{-- Data Setup for Active vs Used --}}
+                    @php
+                        $activeVouchers = $myRedemptions->where('status', '!=', 'Used');
+                        $usedVouchers = $myRedemptions->where('status', 'Used');
+                    @endphp
+
+                    {{-- ACTIVE VOUCHERS BOX --}}
                     <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                        <h4 class="font-bold text-gray-700 mb-4 border-b pb-2">My Vouchers</h4>
-                        @if($myRedemptions->count() > 0)
+                        <h4 class="font-bold text-gray-700 mb-4 border-b pb-2">Active Vouchers</h4>
+                        @if($activeVouchers->count() > 0)
                             <ul class="space-y-3">
-                                @foreach($myRedemptions as $history)
+                                @foreach($activeVouchers as $history)
                                     <li class="text-sm bg-gray-50 p-2 rounded border flex justify-between items-center">
                                         <span class="font-bold text-gray-700">{{ $history->voucher->name }}</span>
-                                        <span class="text-xs text-green-600 font-bold">Active</span>
+                                        
+                                        {{-- USE NOW BUTTON FORM --}}
+                                        <form action="{{ route('passenger.voucher.use', $history->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to use this voucher now? This cannot be undone.');">
+                                            @csrf
+                                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-transform transform hover:scale-105">
+                                                Use Now
+                                            </button>
+                                        </form>
                                     </li>
                                 @endforeach
                             </ul>
                         @else
-                            <p class="text-xs text-gray-400 italic">You haven't redeemed anything yet.</p>
+                            <p class="text-xs text-gray-400 italic">No active vouchers available.</p>
                         @endif
                     </div>
+
+                    {{-- 🌟 NEW: USED HISTORY BOX 🌟 --}}
+                    <div class="bg-gray-50 shadow-sm sm:rounded-lg p-6 border border-gray-200">
+                        <h4 class="font-bold text-gray-500 mb-4 border-b pb-2">Reward History</h4>
+                        @if($usedVouchers->count() > 0)
+                            <ul class="space-y-3 opacity-70">
+                                @foreach($usedVouchers as $history)
+                                    <li class="text-sm bg-gray-100 p-2 rounded border border-gray-300 flex justify-between items-center">
+                                        {{-- Strike-through text to show it is used --}}
+                                        <span class="font-semibold text-gray-500 line-through">{{ $history->voucher->name }}</span>
+                                        <span class="text-xs font-bold text-gray-400 uppercase">Used</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            <p class="text-xs text-gray-400 italic">You haven't used any rewards yet.</p>
+                        @endif
+                    </div>
+
                 </div>
 
                 {{-- 2. REDEEM VOUCHERS LIST (RIGHT) --}}
