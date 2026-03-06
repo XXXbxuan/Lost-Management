@@ -24,14 +24,21 @@ class StaffController extends Controller
     }
 
     /**
-     * NEW: Admin Analytics Dashboard with Pie Chart Logic
+     * NEW: Admin Analytics Dashboard with Pie Chart & Success Metrics
      */
     public function dashboard()
     {
         // 1. Calculate totals for the top summary cards
         $totalFound = FoundItem::count();
-        $totalLost = LostItemReport::count(); // Adjust model name if needed
+        $totalLost = LostItemReport::count(); 
         $totalStaff = Staff::count();
+
+        // 🌟 NEW: Calculate Recovery Success Rate (KPI)
+        // Count how many Lost Reports are marked as 'Claimed'
+        $successfulRecoveries = LostItemReport::where('status', 'Claimed')->count();
+        
+        // Calculate percentage: (Claimed / Total Reports) * 100
+        $successRate = $totalLost > 0 ? round(($successfulRecoveries / $totalLost) * 100, 1) : 0;
 
         // 2. Aggregate Found Items by Category (Pie Chart)
         $categories = FoundItem::select('category', DB::raw('count(*) as total'))
@@ -42,26 +49,27 @@ class StaffController extends Controller
         $categoryLabels = array_keys($categories);
         $categoryData = array_values($categories);
 
-        // 3. 🌟 NEW: Get Top 5 "Hotspot" Locations (Horizontal Bar Chart)
+        // 3. Get Top 5 "Hotspot" Locations (Horizontal Bar Chart)
         $hotspots = FoundItem::select('found_location', DB::raw('count(*) as total'))
             ->groupBy('found_location')
-            ->orderBy('total', 'desc') // Sort highest to lowest
-            ->limit(5) // Only take the top 5 worst spots
+            ->orderBy('total', 'desc') 
+            ->limit(5) 
             ->pluck('total', 'found_location')
             ->toArray();
 
         $hotspotLabels = array_keys($hotspots);
         $hotspotData = array_values($hotspots);
 
-        // 4. Return to view
+        // 4. Return to view with the new successRate variable
         return view('admin.dashboard', compact(
             'totalFound', 
             'totalLost', 
             'totalStaff',
+            'successRate',       // <--- Added for Success Rate Card
             'categoryLabels', 
             'categoryData',
-            'hotspotLabels', // Send hotspot labels to view
-            'hotspotData'    // Send hotspot numbers to view
+            'hotspotLabels', 
+            'hotspotData'    
         ));
     }
 
