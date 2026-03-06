@@ -62,7 +62,13 @@ class LostItemController extends Controller
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
-        // 🌟 已統一為 $lostItem
+        // 🌟 核心修正：在這裡偷偷把當前登入的 Staff ID 塞進去
+        // 這樣資料庫就會記下「是這位員工幫忙建立這筆報失單的」
+        if (auth()->check()) {
+            $validated['staff_id'] = auth()->id();
+        }
+
+        // 🌟 已統一為 $lostItem，現在它會帶著 staff_id 一起存進去！
         $lostItem = LostItemReport::create($validated);
 
         AdminActionLog::create([

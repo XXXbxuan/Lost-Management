@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
@@ -12,325 +13,320 @@ use App\Mail\AppointmentConfirmation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache; // 🌟 必須引入 Cache
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class ClaimController extends Controller
 {
     /**
-     * 1. 準備領取流程頁面 (針對剛配對成功，尚未建立預約的狀態)
+     * 🌟 私有方法：全案數據統一提取器
+     * 為 Timeline 和 Receipt 提供完整的 5 階段數據與日誌證明
      */
-    public function createClaim(Request $request)
+    /**
+ * 🌟 全案數據大一統提取器 (The Single Source of Truth)
+ * 作用：將 Match 數據、結案紀錄、以及 AdminActionLog 裡的所有原始審計日誌合併。
+ */
+    private function getCompleteCaseContext($id, $identifierType = 'match_id')
     {
-        $lostId = $request->query('lost_id');
-        $lostItem = LostItemReport::findOrFail($lostId);
-        $match = MatchRecord::where('lostId', $lostItem->id)
-            ->where('status', 'Verified')
-            ->firstOrFail();
-        $foundItem = FoundItem::findOrFail($match->foundId);
+        // 1. 鎖定核心 Match 紀錄，預載你指定的 staff 關聯
+        $query = MatchRecord::with([
+            'foundItem.staff', // Phase 1 登記人 (原本有的一套)
+            'lostItem.staff',  // Phase 2 登記人
+            'verifier'         // Phase 4 預約發送者
+        ]);
 
-        return view('staff.claims.process', compact('lostItem', 'foundItem', 'match'));
+        // 2. 靈活定位：根據傳入的 ID 類型（MatchID, ClaimID, 或 LostID）找到那筆單子
+        if ($identifierType === 'match_id') {
+            $match = $query->find($id);
+        } elseif ($identifierType === 'claim_id') {
+            $claimTemp = Claim::find($id);
+            $match = $claimTemp ? $query->where('lostId', $claimTemp->lostId)->where('foundId', $claimTemp->foundId)->first() : null;
+        } else {
+            // 默認作為 Lost ID 處理 (用於 Timeline 彈窗)
+            $match = $query->where('lostId', $id)
+                        ->whereIn('status', ['Verified', 'Claimed'])
+                        ->latest()
+                        ->first();
+        }
+
+        // 如果連 Match 紀錄都沒有，代表這是一筆「死單」，直接回傳
+        if (!$match) return null;
+
+        // 3. 抓取 Phase 5 結案紀錄 (Claim)
+        $claim = Claim::with('handler')
+                    ->where('lostId', $match->lostId)
+                    ->where('foundId', $match->foundId)
+                    ->first();
+
+        // 4. 🌟 關鍵：連結原本有的那一套 Audit Logs
+        // 我們掃描 target_name，只要包含 Lost ID 或 Found ID 的紀錄通通抓出來。
+        // 這會自動包含你 Tinker 裡的：BLOCK_STAFF, SEND_APPOINTMENT, VERIFY_MATCH 等。
+        $auditLogs = AdminActionLog::where(function($q) use ($match) {
+                        $q->where('target_name', 'like', "%#{$match->lostId}%")
+                        ->orWhere('target_name', 'like', "%#{$match->foundId}%")
+                        ->orWhere('target_name', 'like', "%Match #{$match->id}%");
+                    })
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+        // 5. 統一封裝回傳
+        return [
+            'match'     => $match,
+            'claim'     => $claim,
+            'auditLogs' => $auditLogs, // 這是你全專案唯一的證據清單
+            'foundItem' => $match->foundItem,
+            'lostItem'  => $match->lostItem,
+        ];
     }
 
-    /**
-     * 🌟 2. 處理既有的配對紀錄 (包含 Step 2 雷達等待頁面)
-     */
+    // ==========================================
+    // 1. 預約流程 (Schedule & Confirm)
+    // ==========================================
+
     public function process($id)
     {
-        $match = MatchRecord::findOrFail($id);
-        $lostItem = LostItemReport::findOrFail($match->lostId);
-        $foundItem = FoundItem::findOrFail($match->foundId);
+        $data = $this->getCompleteCaseContext($id, 'match_id');
+        if (!$data) abort(404);
 
-        // 🌟 物理隔離：員工進入此頁面，立刻清空舊的掃描快取，避免幽靈跳轉
         Cache::forget('staff_scan_' . auth()->id());
-
-        return view('staff.claims.process', compact('match', 'lostItem', 'foundItem'));
+        return view('staff.claims.process', $data);
     }
 
-    /**
-     * 3. 設定預約時間並發送確認信
-     */
     public function schedule(Request $request)
     {
-        // ... (保持你原本的 schedule 邏輯不變) ...
         $request->validate([
-            'match_id'         => 'required',
+            'match_id' => 'required',
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required',
         ]);
 
         $fullDateTimeString = $request->appointment_date . ' ' . $request->appointment_time;
-        
-        $fullDateTime = \Carbon\Carbon::parse($fullDateTimeString);
-        if ($fullDateTime->isPast()) {
-            return back()->withErrors(['appointment_time' => 'Oops! The time has already passed. Please select a future time.']);
+        $appointmentTime = \Carbon\Carbon::parse($fullDateTimeString);
+
+        if ($appointmentTime->isPast()) {
+            return back()->withErrors(['appointment_time' => 'Time already passed. Please select a future time.']);
         }
 
         $match = MatchRecord::findOrFail($request->match_id);
-        $lostItem = LostItemReport::findOrFail($match->lostId);
+        
+        // 🌟 判斷是「第一次預約」還是「重新預約」
+        $isReschedule = !is_null($match->appointment_at);
+        $oldTime = $match->appointment_at ? $match->appointment_at->format('M d, h:i A') : 'None';
         $token = strtoupper(Str::random(6));
 
+        // 執行更新
         $match->update([
             'appointment_at'     => $fullDateTimeString,
             'verification_token' => $token,
             'is_confirmed'       => false,
-            'status'             => 'Verified', 
+            'status'             => 'Verified',
+            'verifiedBy'         => auth()->id(),
         ]);
 
-        $confirmLink = route('pickup.confirm', ['token' => $token]);
-        $passengerEmail = $lostItem->passenger_email ?? 'chiabx-wp22@student.tarc.edu.my';
+        // 🌟 寫入大一統日誌 (自動區分類型)
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name,
+            'action_type' => $isReschedule ? 'RESCHEDULE_APPOINTMENT' : 'SEND_APPOINTMENT',
+            'target_name' => "Match #{$match->id} (Lost #{$match->lostId} / Found #{$match->foundId})",
+            'details'     => $isReschedule 
+                ? "Action by [" . strtoupper(auth()->user()->role) . "]. Rescheduled from [{$oldTime}] to [{$appointmentTime->format('M d, h:i A')}]. Venue: [Admin Office]. Token refreshed: [{$token}]."
+                : "Action by [" . strtoupper(auth()->user()->role) . "]. Initial appointment set for [{$appointmentTime->format('M d, h:i A')}]. Venue: [Admin Office]."
+        ]);
 
+        // 發送郵件
+        $passengerEmail = $match->lostItem->passenger_email ?? 'staff@example.com';
         try {
-            Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, $confirmLink));
-            $message = 'Appointment scheduled! Verification link sent to ' . $passengerEmail;
+            Mail::to($passengerEmail)->send(new AppointmentConfirmation($match, route('pickup.confirm', ['token' => $token])));
+            $message = 'Appointment ' . ($isReschedule ? 'Rescheduled' : 'Scheduled') . ' & Email sent.';
         } catch (\Exception $e) {
-            \Log::error('Email #1 Failed', ['to' => $passengerEmail, 'error' => $e->getMessage()]);
-            $message = 'Appointment set, but email failed: ' . $e->getMessage();
+            \Log::error('Email Failed', ['error' => $e->getMessage()]);
+            $message = 'Time updated, but email system failed.';
         }
 
         return back()->with('success', $message);
     }
-
     /**
-     * 🌟 4. 智能驗證入口 (QR Code 掃描後) - 手機與電腦分工
+     * 🌟 旅客點擊 Email 連結後的確認動作
      */
+    public function confirm($token)
+    {
+        $match = MatchRecord::where('verification_token', $token)->firstOrFail();
+        
+        // 1. 更新確認狀態
+        $match->update([
+            'is_confirmed' => true,
+            'confirmed_at' => now(),
+        ]);
+
+        // 2. 🌟 寫入 PASSENGER_CONFIRM 審計日誌 (讓 Timeline 抓到活證據)
+        AdminActionLog::create([
+            'admin_name'  => "Passenger (System)",
+            'action_type' => 'PASSENGER_CONFIRM',
+            'target_name' => "Match #{$match->id}",
+            'details'     => "User authentication successful via encrypted email token. Time confirmed: [" . now()->format('M d, h:i A') . "]. Status changed to [Ready for Handover]."
+        ]);
+
+        // 3. 獲取全案上下文數據並返回 QR 狀態頁
+        $data = $this->getCompleteCaseContext($match->id, 'match_id');
+        return view('passenger.claims.qr_status', $data);
+    }
+
+    // ==========================================
+    // 2. 智能驗證與雷達 (QR & Radar)
+    // ==========================================
+
     public function smartVerify($token)
     {
-        $match = MatchRecord::where('verification_token', $token)
-                    ->with(['lostItem', 'foundItem'])
-                    ->firstOrFail();
+        $match = MatchRecord::where('verification_token', $token)->firstOrFail();
 
+        // 🌟 只要觸發掃描，無論結果如何先記一筆「嘗試掃描」
         if (auth()->check()) {
             $userRole = strtolower(auth()->user()->role); 
             
-            // 判斷是否為工作人員掃描
+            // 寫入大一統日誌 (SCAN_QR_ATTEMPT)
+            AdminActionLog::create([
+                'admin_name'  => auth()->user()->name,
+                'action_type' => 'SCAN_QR_ATTEMPT',
+                'target_name' => "Match #{$match->id}",
+                'details'     => "Staff [".auth()->user()->name."] (Role: {$userRole}) scanned QR code on-site. System state: " . $match->status
+            ]);
+
+            // Staff/Admin 的後續邏輯
             if ($userRole === 'admin' || $userRole === 'staff') {
-                
-                // 🚫 防呆：如果已經領取，導向你現有的已領取頁面
                 if ($match->status === 'Claimed') {
                     return view('staff.claims.qr_status_claimed', compact('match'));
                 }
-
-                // ✅ 發送雷達訊號：把這筆 Match ID 存進快取
+                // 發送雷達訊號
                 Cache::put('staff_scan_' . auth()->id(), $match->id, now()->addMinutes(2));
-
-                // 🌟 手機端顯示成功提示 (請確保有建立 scan_success.blade.php)
                 return view('staff.claims.scan_success', compact('match'));
             }
         }
 
-        // --- 旅客視角 ---
+        // 乘客端邏輯
+        $data = $this->getCompleteCaseContext($match->id, 'match_id');
         if ($match->status === 'Claimed') {
-            return view('passenger.claims.pickup_success_receipt', compact('match'));
+            return view('passenger.claims.pickup_success_receipt', $data);
         }
-
-        return view('passenger.claims.qr_status', compact('match'));
+        return view('passenger.claims.qr_status', $data);
     }
 
-    public function handover(Request $request, $id)
-    {
-        // 統一抓取資料，兩階段共用
-        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
-
-        // 💡 邏輯切換：如果網址有 ?step=2，就顯示 Stage 2 (填寫 IC)
-        if ($request->query('step') == 2) {
-            return view('staff.claims.enter_ic', [
-                'match' => $match,
-                'lostItem' => $match->lostItem,
-                'foundItem' => $match->foundItem
-            ]);
-        }
-
-        // 預設顯示 Stage 1 (照片與存放位置對比)
-        return view('staff.claims.verify_action', [
-            'match' => $match,
-            'lostItem' => $match->lostItem,
-            'foundItem' => $match->foundItem
-        ]);
-    }
-
-    /**
-     * 🌟 5. 電腦端：雷達監聽器 (必須補上這個方法，雷達才有用)
-     */
     public function checkRecentScan(Request $request)
     {
-        $staffId = auth()->id();
-        $cacheKey = 'staff_scan_' . $staffId;
-        $scannedId = Cache::pull($cacheKey);
-
+        $scannedId = Cache::pull('staff_scan_' . auth()->id());
         if ($scannedId) {
             $currentId = (int)$request->query('current_id', 0);
-
             if ($currentId > 0 && $scannedId === $currentId) {
                 return response()->json([
                     'status' => 'success',
-                    // 🚀 核心改動：掃描後，先飛去 handover 的 Stage 1 (預設頁面)
                     'redirect_url' => route('staff.claims.handover', $scannedId)
                 ]);
             }
         }
         return response()->json(['status' => 'waiting']);
     }
-    /**
- * 🌟 AJAX 檢查預約是否已確認
- */
+
     public function checkConfirmation($id)
     {
-        $match = \App\Models\MatchRecord::findOrFail($id);
+        $match = MatchRecord::findOrFail($id);
+        return response()->json(['is_confirmed' => (bool)$match->is_confirmed]);
+    }
+
+    // ==========================================
+    // 3. 現場結案 (Handover)
+    // ==========================================
+
+    public function handover(Request $request, $id)
+    {
+        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
+        $view = ($request->query('step') == 2) ? 'staff.claims.enter_ic' : 'staff.claims.verify_action';
         
-        return response()->json([
-            'is_confirmed' => (bool) $match->is_confirmed
+        return view($view, [
+            'match' => $match,
+            'lostItem' => $match->lostItem,
+            'foundItem' => $match->foundItem
         ]);
     }
 
-    /**
-     * 🌟 6. 顯示對比圖 (這就是你原本就有的 verify_action 頁面)
-     */
-
-
-    /**
-     * 7. 最終領取確認 (Handover)
-     */
-    /**
-     * 7. 最終領取確認 (Handover) - 記錄真實姓名與現場證據照片
-     */
     public function completeHandover(Request $request, $id)
     {
-        // 1. 嚴格驗證所有傳入的資料 (包含圖片格式與大小限制)
         $request->validate([
             'passenger_name_ic' => 'required|string|max:255',
             'passenger_ic'      => 'required|string|max:50',
-            'handover_photo'    => 'required|image|mimes:jpeg,png,jpg|max:5120', // 最大 5MB
+            'handover_photo'    => 'required|image|max:5120',
         ]);
 
-        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
-        
+        $match = MatchRecord::findOrFail($id);
+
         try {
             DB::transaction(function () use ($match, $request) {
-                
-                // 2. 處理現場領取照片儲存 (會存到 storage/app/public/handover_photos)
-                $photoPath = null;
-                if ($request->hasFile('handover_photo')) {
-                    $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
-                }
+                $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
 
-                // 🌟 3. 核心：建立正式的 Claim (領取) 紀錄！(存入我們剛救回來的 Claim 表)
                 Claim::create([
+                    'match_id'          => $match->id, // 🌟 核心：存入 Match 表的真實 ID，不再讓它亂跳
                     'lostId'            => $match->lostId,
                     'foundId'           => $match->foundId,
-                    'claimerName'       => $request->passenger_name_ic, // 存入證件上的真實姓名
-                    'claimerIcPassport' => $request->passenger_ic,      // 存入證件號碼
-                    'claimerPhone'      => $match->lostItem->passenger_phone ?? 'N/A', // 繼承原本的電話
+                    'claimerName'       => $request->passenger_name_ic,
+                    'claimerIcPassport' => $request->passenger_ic,
+                    'claimerPhone'      => $match->lostItem->passenger_phone ?? 'N/A',
                     'processedBy'       => auth()->id(),
                     'claimedAt'         => now(),
-                    'handover_photo'    => $photoPath,                  // 🌟 存入照片路徑
+                    'handover_photo'    => $photoPath,
                 ]);
 
-                // 4. 更新 Match 紀錄狀態 (這裡只負責記錄配對已結案，不存 IC 了)
-                $match->update([
-                    'status'     => 'Claimed',
-                    'verifiedBy' => auth()->id(), 
-                    'verifiedAt' => now(), 
-                ]);
-
-                // 5. 同步更新物品狀態為 Claimed
+                $match->update(['status' => 'Claimed', 'verifiedAt' => now()]);
                 $match->lostItem->update(['status' => 'Claimed']);
                 $match->foundItem->update(['status' => 'Claimed']);
 
-                // 6. 寫入 Admin Log (記錄真實姓名與照片路徑，方便報警備查)
                 AdminActionLog::create([
                     'admin_name'  => auth()->user()->name,
                     'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                    'target_name' => "Passenger: " . $request->passenger_name_ic,
-                    'details'     => "Handed over Item: [{$match->foundItem->item_name}]. Real Name: {$request->passenger_name_ic}, IC: {$request->passenger_ic}. Evidence Photo: {$photoPath}"
+                    'target_name' => "Lost Report #{$match->lostId} | Passenger: {$request->passenger_name_ic}",
+                    'details'     => "Handover confirmed with photo. IC: {$request->passenger_ic}"
                 ]);
             });
 
-            return redirect()->route('staff.claims.index')->with('success', '✅ Handover successful! Legal evidence safely stored in Claims database.');
-
+// 如果你的路由名稱是 history，請改成這樣：
+            return redirect()->route('staff.claims.index')->with('success', 'Handover Completed.');
         } catch (\Exception $e) {
-            \Log::error("Critical Handover Error: " . $e->getMessage());
-            return back()->with('error', 'Critical Error: Data update or file upload failed. Please try again.');
+            return back()->with('error', 'Handover Failed: ' . $e->getMessage());
         }
     }
 
-    
+    // ==========================================
+    // 4. 歷史與收據 (History & Timeline)
+    // ==========================================
 
-    /**
-     * 5. 手動處理領取 (無 QR Code 情況下的手動輸入)
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'lostId'            => 'required',
-            'foundId'           => 'required',
-            'claimerName'       => 'required',
-            'claimerIcPassport' => 'required',
-            'claimerPhone'      => 'required',
-        ]);
-
-        $match = MatchRecord::where('lostId', $request->lostId)
-                    ->where('foundId', $request->foundId)
-                    ->firstOrFail();
-
-        if (!$match->is_confirmed) {
-            return back()->withErrors([
-                'claimerIcPassport' => 'The passenger has NOT confirmed the appointment via Email link yet.'
-            ]);
-        }
-
-        DB::transaction(function () use ($request) {
-            Claim::create([
-                'lostId'            => $request->lostId,
-                'foundId'           => $request->foundId,
-                'claimerName'       => $request->claimerName,
-                'claimerIcPassport' => $request->claimerIcPassport,
-                'claimerPhone'      => $request->claimerPhone,
-                'processedBy'       => auth()->id(),
-                'claimedAt'         => now(),
-            ]);
-
-            LostItemReport::where('id', $request->lostId)->update(['status' => 'Claimed']);
-            FoundItem::where('id', $request->foundId)->update(['status' => 'Claimed']);
-        });
-
-        return redirect()->route('staff.lost-items.index')
-                         ->with('success', 'Manual handover completed!');
-    }
-
-    /**
-     * 6. 領取歷史紀錄列表
-     */
     public function index()
     {
-        $claims = Claim::with(['foundItem', 'lostItem', 'handler']) 
-            ->latest('claimedAt')
-            ->paginate(10);
+        // 抓取所有結案紀錄，並預載關聯的物品、報失單與處理人 (Handler)
+        $claims = Claim::with([
+            'foundItem', 
+            'lostItem', 
+            'handler' // Phase 5 的實際執行 Staff
+        ])
+        ->latest('claimedAt') // 按照領取時間排序，最新的在上面
+        ->paginate(15);      // 每頁顯示 15 筆
 
+        // 🌟 這裡對應 resources/views/staff/claims/index.blade.php
         return view('staff.claims.index', compact('claims'));
     }
 
-    /**
-     * 7. 彈出視窗使用的時間軸 HTML
-     */
-    public function getTimelineHtml($id)
+    public function showReceipt($matchId)
     {
-        $lostItem = LostItemReport::findOrFail($id);
+        // 🌟 調用現有的唯一方法，拿到 Match、Claim 和全量 AuditLogs
+        $data = $this->getCompleteCaseContext($matchId, 'match_id');
 
-        // 🌟 修正重點：把 where 改成 whereIn，同時包容 Verified 和 Claimed 兩種狀態！
-        $match = MatchRecord::where('lostId', $lostItem->id)
-            ->whereIn('status', ['Verified', 'Claimed'])
-            ->latest() // 預防萬一，確保抓到最新的一筆紀錄
-            ->first();
-
-        // 如果連 Claimed 或 Verified 的紀錄都沒有，才顯示沒有資料
-        if (!$match || !$match->foundItem) {
-            return '<div class="p-6 text-center text-gray-500 font-bold">No verified or claimed timeline data available.</div>';
+        if (!$data) {
+            abort(404, 'Receipt not found.');
         }
 
-        $foundItem = $match->foundItem;
+        return view('staff.claims.receipt', $data);
+    }
 
-        // ✅ 成功抓到資料，渲染你做好的通用時間軸
-        return view('staff.claims.partials.timeline', compact('foundItem', 'match'))->render();
+    public function getTimelineHtml($id)
+    {
+        $data = $this->getCompleteCaseContext($id, 'lost_id');
+        if (!$data) return '<div class="p-6 text-center text-gray-500 font-bold">No history available.</div>';
+        return view('staff.claims.partials.timeline', $data)->render();
     }
 }

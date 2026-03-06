@@ -38,7 +38,6 @@ Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'hand
 
 // ====================================================
 // 🌈 3. 公開訪問路徑 (無需登入)
-// 處理旅客 Email 確認與 QR Code 智能驗證分流
 // ====================================================
 Route::prefix('pickup')->group(function () {
     Route::get('/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
@@ -82,30 +81,26 @@ Route::middleware('auth')->group(function () {
         Route::post('match-verify/save', [LostItemController::class, 'storeMatch'])->name('match.store');
         Route::post('match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('match.unmatch');
         
-        // 🌟 領取管理資源群組 (Claims & Handover)
+        // 🌟 領取管理 (Claims & Handover)
+        // 這裡的層級會產生：staff.claims.xxx 的路由名稱
         Route::prefix('claims')->name('claims.')->group(function () {
+            
+            // 📜 結案歷史紀錄 -> route('staff.claims.history')
             Route::get('/', [ClaimController::class, 'index'])->name('index'); 
-            Route::get('/create', [ClaimController::class, 'createClaim'])->name('create');
-            Route::post('/store', [ClaimController::class, 'store'])->name('store');
-            Route::post('/schedule', [ClaimController::class, 'schedule'])->name('schedule');
-            
-            // 🌟 雷達監聽器 (Ajax 檢查是否掃碼成功)
-            Route::get('/check-scan', [ClaimController::class, 'checkRecentScan'])->name('check_scan');
 
-            // 🌟 階段 0：雷達等待頁面 (電腦顯示等待 QR Scan)
+            // 🧾 正式收據 -> route('staff.claims.receipt')
+            Route::get('/receipt/{id}', [ClaimController::class, 'showReceipt'])->name('receipt');
+
+            // 🧪 現場處理流程
             Route::get('/{id}/process', [ClaimController::class, 'process'])->name('process');
-            
-            // 🌟 階段 1 & 2：合併交接流程
-            // 1. 預設訪問此路由顯示 Stage 1 (照片對比頁 verify_action)
-            // 2. 帶上 ?step=2 參數則顯示 Stage 2 (輸入 IC 頁 enter_ic)
             Route::get('/{id}/handover', [ClaimController::class, 'handover'])->name('handover');
-            // 🌟 檢查旅客是否已確認預約的 AJAX 路由
-            Route::get('/check-confirmation/{id}', [ClaimController::class, 'checkConfirmation'])->name('check_confirmation');
-
-            Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
-
-            // 最終結案動作 (POST)
             Route::post('/{id}/complete', [ClaimController::class, 'completeHandover'])->name('complete');
+
+            // 📡 工具類 (Ajax/Logic)
+            Route::post('/schedule', [ClaimController::class, 'schedule'])->name('schedule');
+            Route::get('/check-scan', [ClaimController::class, 'checkRecentScan'])->name('check_scan');
+            Route::get('/check-confirmation/{id}', [ClaimController::class, 'checkConfirmation'])->name('check_confirmation');
+            Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
         });
 
         // 其他功能

@@ -1,123 +1,121 @@
-<div class="w-full py-6">
-    <div class="flex items-start justify-between relative px-4">
+@php
+    use Illuminate\Support\Str;
+
+    // 1. 🌟 證據鏈抓取：從全量 Audit Logs 中鎖定關鍵動作
+    $foundLog    = $auditLogs->where('action_type', 'REGISTER_FOUND_ITEM')->first();
+    $matchLog    = $auditLogs->where('action_type', 'VERIFY_MATCH')->last();
+    
+    // 預約日誌：優先抓取「重新預約」，若無則抓取「首次預約」
+    $apptLog     = $auditLogs->where('action_type', 'RESCHEDULE_APPOINTMENT')->last() 
+                   ?? $auditLogs->where('action_type', 'SEND_APPOINTMENT')->first();
+    
+    $confirmLog  = $auditLogs->where('action_type', 'PASSENGER_CONFIRM')->first();
+    
+    // 🌟 新增：現場掃碼嘗試證據 (只拿最後一次)
+    $scanLog     = $auditLogs->where('action_type', 'SCAN_QR_ATTEMPT')->last();
+    
+    $handoverLog = $auditLogs->where('action_type', 'ITEM_HANDOVER_SUCCESS')->first();
+    
+    // 2. 🌟 數據拆解：從日誌 details 裡提取關鍵資訊
+    $parsedFoundLoc = $foundLog ? (Str::between($foundLog->details, 'Location: ', ',') ?: $foundItem->found_location) : $foundItem->found_location;
+    $parsedScore    = $matchLog ? (Str::between($matchLog->details, 'Score: ', '%') ?: $match->similarityScore) : $match->similarityScore;
+    $parsedVenue    = $apptLog ? (Str::between($apptLog->details, 'Venue: [', ']') ?: 'Admin Office') : 'Admin Office';
+    $parsedIC       = $handoverLog ? (Str::after($handoverLog->details, 'IC: ') ?: 'Verified') : 'Verified';
+
+    // 3. 狀態判斷
+    $isScheduled = !is_null($match->appointment_at);
+    $isConfirmed = (bool)$match->is_confirmed;
+    $isClaimed   = ($foundItem->status === 'Claimed');
+@endphp
+
+<div class="w-full py-10 bg-white rounded-[3rem]">
+    <div class="flex items-start justify-between relative px-8">
         
-        {{-- 背景灰线 --}}
-        <div class="absolute top-5 left-10 right-10 h-1 bg-gray-200 -z-10"></div>
+        {{-- 背景進度灰線 --}}
+        <div class="absolute top-5 left-16 right-16 h-1 bg-gray-200 -z-10"></div>
 
         {{-- Step 1: Item Found --}}
         <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white">
-                ✓
-            </div>
+            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">✓</div>
             <h3 class="mt-2 text-sm font-bold text-gray-800">Item Found</h3>
-            <div class="mt-1 text-xs text-center text-gray-500 space-y-1">
-                <p>{{ $foundItem->created_at->format('M d, h:i A') }}</p>
-                <p>Loc: {{ $foundItem->found_location }}</p>
-                <p class="text-indigo-600 font-semibold truncate w-24 text-center">{{ $foundItem->item_name }}</p>
+            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                <p class="font-bold">{{ $foundItem->created_at->format('M d, h:i A') }}</p>
+                <p class="truncate w-24 mx-auto text-indigo-500 font-medium">Loc: {{ $parsedFoundLoc }}</p>
+                <p class="text-indigo-600 font-black uppercase italic">{{ $foundItem->item_name }}</p>
+                <p class="text-indigo-400 font-bold">By: {{ $foundLog->admin_name ?? 'Staff' }}</p>
             </div>
         </div>
 
         {{-- Step 2: Matched --}}
         <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white">
-                ✓
-            </div>
+            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">✓</div>
             <h3 class="mt-2 text-sm font-bold text-gray-800">Matched</h3>
-            <div class="mt-1 text-xs text-center text-gray-500 space-y-1">
-                <p>{{ $match->updated_at->format('M d, h:i A') }}</p>
-                <p>Score: <span class="font-mono text-green-600">{{ $match->similarityScore ?? 0 }}%</span></p> 
-                <p class="text-green-600 font-bold">Status: Verified</p>
+            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                <p class="font-bold">{{ $match->created_at->format('M d, h:i A') }}</p>
+                <p class="text-green-600 font-bold">Score: {{ $parsedScore }}%</p>
+                <p class="text-indigo-400 font-bold italic">By: {{ $matchLog->admin_name ?? 'Admin' }}</p>
             </div>
         </div>
 
-       {{-- Step 3: Appointment (包含 Scheduled 與 Rejected 狀態) --}}
-        @php
-            $isScheduled = !is_null($match->appointment_at);
-            // 🌟 判斷是否被拒絕：有 rejected_at 紀錄，且目前沒有 appointment_at (代表舊的被清空了)
-            $isRejected = !is_null($match->rejected_at) && is_null($match->appointment_at);
-        @endphp
-        
+        {{-- Step 3: Appointment (連動 SEND / RESCHEDULE 日誌) --}}
         <div class="flex flex-col items-center w-1/5 relative group">
-            
-            {{-- 背景色：排好變綠色，被拒絕變紅色，還沒排變灰色 --}}
-            <div class="w-10 h-10 
-                {{ $isScheduled ? 'bg-green-500' : ($isRejected ? 'bg-red-500' : 'bg-gray-300') }} 
-                rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white transition-colors">
-                
-                {{-- 圖標：排好打勾，被拒絕打叉，還沒排顯示 3 --}}
-                @if($isScheduled)
-                    ✓
-                @elseif($isRejected)
-                    ✕
-                @else
-                    3
-                @endif
+            <div class="w-10 h-10 {{ $isScheduled ? 'bg-green-500' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+                {{ $isScheduled ? '✓' : '3' }}
             </div>
-            
-            {{-- 標題顏色與文字 --}}
-            <h3 class="mt-2 text-sm font-bold 
-                {{ $isScheduled ? 'text-gray-800' : ($isRejected ? 'text-red-600' : 'text-gray-400') }}">
-                {{ $isRejected ? 'Rejected' : 'Appointment' }}
+            <h3 class="mt-2 text-sm font-bold {{ $isScheduled ? 'text-gray-800' : 'text-gray-400' }}">
+                {{ $apptLog && $apptLog->action_type === 'RESCHEDULE_APPOINTMENT' ? 'Rescheduled' : 'Appointment' }}
             </h3>
-            
-            {{-- 下方詳細資訊 --}}
-            <div class="mt-1 text-xs text-center space-y-1">
+            <div class="mt-1 text-[10px] text-center space-y-1">
                 @if($isScheduled)
-                    {{-- 🟢 狀態：已安排 --}}
                     <p class="font-bold text-green-600">{{ \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') }}</p>
-                    <p class="text-gray-500">Loc: Admin Office</p>
-                    <p class="text-gray-500">Email: <span class="text-green-500 font-bold">Sent</span></p>
-                    
-                @elseif($isRejected)
-                    {{-- 🔴 狀態：被拒絕 --}}
-                    <p class="font-bold text-red-500">{{ \Carbon\Carbon::parse($match->rejected_at)->format('M d, h:i A') }}</p>
-                    <p class="text-[10px] text-red-400 italic leading-tight">Passenger proposed<br>new time</p>
-                    
+                    <p class="text-gray-500 italic">Loc: {{ $parsedVenue }}</p>
+                    <p class="text-indigo-400 font-bold">Sent By: {{ $apptLog->admin_name ?? 'Staff' }}</p>
                 @else
-                    {{-- ⚪ 狀態：尚未安排 --}}
-                    <p class="italic text-gray-400">Not scheduled yet</p>
+                    <p class="italic text-gray-400">Awaiting schedule...</p>
                 @endif
             </div>
-            
         </div>
 
-        {{-- Step 4: Confirmed --}}
-        @php
-            $isConfirmed = $match->is_confirmed;
-        @endphp
+        {{-- Step 4: Confirmed (連動 PASSENGER_CONFIRM + SCAN 證據) --}}
         <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 {{ $isConfirmed ? 'bg-green-500' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white transition-colors">
+            <div class="w-10 h-10 {{ $isConfirmed ? 'bg-green-500' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                 {{ $isConfirmed ? '✓' : '4' }}
             </div>
             <h3 class="mt-2 text-sm font-bold {{ $isConfirmed ? 'text-gray-800' : 'text-gray-400' }}">Confirmed</h3>
-            <div class="mt-1 text-xs text-center text-gray-500 space-y-1">
+            <div class="mt-1 text-[10px] text-center space-y-1">
                 @if($isConfirmed)
                     <p class="font-bold text-green-600">{{ \Carbon\Carbon::parse($match->confirmed_at)->format('M d, h:i A') }}</p>
-                    <p>By: User (Mobile)</p>
-                    <p class="bg-green-100 text-green-800 px-1 rounded inline-block">Ready</p>
+                    <span class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-md font-black text-[8px] uppercase">Ready</span>
+                    
+                    {{-- 🌟 現場掃碼證據區塊 --}}
+                    @if($scanLog)
+                        <div class="mt-2 p-1.5 bg-indigo-50 border border-indigo-200 rounded-lg animate-pulse">
+                            <p class="text-indigo-700 font-black text-[7px] uppercase tracking-tighter">⚡ Scan Detected</p>
+                            <p class="text-indigo-400 text-[7px] font-bold">By: {{ $scanLog->admin_name }}</p>
+                        </div>
+                    @endif
                 @else
                     <p class="italic text-gray-400">Waiting for user...</p>
                 @endif
             </div>
         </div>
 
-        {{-- Step 5: Handover --}}
-        @php
-            $isClaimed = $foundItem->status === 'Claimed';
-        @endphp
+        {{-- Step 5: Handover (來自 ITEM_HANDOVER_SUCCESS) --}}
         <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 {{ $isClaimed ? 'bg-green-800' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white font-bold shadow-md z-10 border-4 border-white transition-colors">
-                🏁
+            <div class="w-10 h-10 {{ $isClaimed ? 'bg-black' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+                {{ $isClaimed ? '🏁' : '5' }}
             </div>
             <h3 class="mt-2 text-sm font-bold {{ $isClaimed ? 'text-gray-800' : 'text-gray-400' }}">Handover</h3>
-            <div class="mt-1 text-xs text-center text-gray-500 space-y-1">
+            <div class="mt-1 text-[10px] text-center space-y-1">
                 @if($isClaimed)
-                    <p class="font-bold text-green-700">Completed</p>
-                    <p>Check: IC Verified</p>
+                    <p class="text-green-700 font-black uppercase">Completed</p>
+                    <p class="text-gray-500 font-bold">ID: {{ $parsedIC }}</p>
+                    <p class="text-slate-900 font-black text-[9px] uppercase mt-1 italic underline">Lead: {{ $handoverLog->admin_name ?? 'Admin' }}</p>
                 @else
-                    <p class="italic text-gray-400">Pending</p>
+                    <p class="italic text-gray-400 font-bold uppercase text-[9px]">Awaiting Scan</p>
                 @endif
             </div>
         </div>
+
     </div>
 </div>
