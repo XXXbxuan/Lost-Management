@@ -101,7 +101,7 @@ class FoundItemController extends Controller
             // If a matching user is found, give them points
             if ($finder) {
                 $finder->increment('points', 100); // Give 50 points
-                $successMessage = 'Item saved successfully and 50 points were awarded to ' . $finder->name . '!';
+                $successMessage = 'Item saved successfully and 100 points were awarded to ' . $finder->name . '!';
             }
         }
 

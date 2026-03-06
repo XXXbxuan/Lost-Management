@@ -67,7 +67,7 @@
                         </div>
                         <div>
                             <strong class="block text-gray-800 mb-1">2. Earn Points</strong>
-                            Provide your registered email to the staff. You will instantly receive 50 points as a thank you!
+                            Provide your registered email to the staff. You will instantly receive 100 points as a thank you!
                         </div>
                         <div>
                             <strong class="block text-gray-800 mb-1">3. Security Verification</strong>

@@ -90,7 +90,7 @@
                                 </div>
 
                                 <div class="md:col-span-2 mt-2 p-4 bg-green-50 border border-green-200 rounded-md">
-                                    <label class="block font-bold text-sm text-green-800">🎁 Finder's Email (Optional - To award 50 points)</label>
+                                    <label class="block font-bold text-sm text-green-800">🎁 Finder's Email (Optional - To award 100 points)</label>
                                     <input type="email" name="finder_email" class="mt-1 block w-full rounded-md border-green-300 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="e.g. passenger@gmail.com">
                                     <p class="text-xs text-green-600 mt-1">If a passenger handed this in, enter their registered email to instantly reward them!</p>
                                 </div>
