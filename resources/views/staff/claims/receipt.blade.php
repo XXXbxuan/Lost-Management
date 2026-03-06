@@ -91,7 +91,7 @@
                         </div>
                     </div>
                     <div class="perforation">
-                        <p class="text-[11px] font-black text-slate-300 uppercase rotate-90 whitespace-nowrap mb-12">Asset Stub</p>
+                        <p class="text-[11px] font-black text-slate-300 uppercase whitespace-nowrap ">Asset Stub</p>
                         <p class="text-2xl font-black text-slate-900 italic">#F-{{ $match->foundId }}</p>
                         {{-- 🌟 修正：解決 500 錯誤 --}}
                         <p class="text-[10px] font-bold text-slate-400 mt-2">{{ optional($match->foundItem->created_at)->format('H:i') ?? 'N/A' }}</p>
@@ -105,7 +105,7 @@
                         <p class="text-[12px] font-black text-indigo-600 uppercase tracking-[0.5em] mb-10">02. Associated Lost Report</p>
                         
                         {{-- 🌟 增加 mb-32 確保底部的內容與 Staff Box 保持絕對安全距離 --}}
-                        <div class="grid grid-cols-2 gap-x-12 gap-y-10 mb-32">
+                        <div class="grid grid-cols-2 gap-x-12 gap-y-10 mb-19.5">
                             {{-- 左側：失主身份 --}}
                             <div>
                                 <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Claimant Identity</label>
@@ -146,8 +146,6 @@
 
                         {{-- 🌟 Staff Box (固定右下角，現在有足夠的 mb-32 保護) --}}
                         <br>
-                        <br>
-                        <br>
                         <div class="staff-stamp">
                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Action: Assisted Registry</p>
                             <p class="text-base font-black text-slate-900 uppercase leading-none mt-1">
@@ -160,12 +158,24 @@
                     </div>
 
                     {{-- 票根 --}}
-                    <div class="perforation">
-                        <p class="text-[11px] font-black text-slate-300 uppercase rotate-90 mb-12 tracking-[0.8em]">Report Stub</p>
-                        <p class="text-2xl font-black text-slate-900 italic">#L-{{ $match->lostId }}</p>
-                        <p class="text-[10px] font-bold text-slate-400 mt-2">
+                    {{-- 票根區域：使用 Flexbox 讓內容垂直與水平完全居中 --}}
+                    <div class="perforation flex flex-col items-center justify-center text-center p-4">
+                        
+                        {{-- 1. 標籤：移除旋轉與大邊距，縮小字距防止撐開空間 --}}
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-3">
+                            Report Stub
+                        </p>
+
+                        {{-- 2. 編號：主體 ID --}}
+                        <p class="text-2xl font-black text-slate-900 italic leading-none">
+                            #L-{{ $match->lostId }}
+                        </p>
+
+                        {{-- 3. 時間：底部裝飾 --}}
+                        <p class="text-[10px] font-bold text-slate-400 mt-3 font-mono">
                             {{ optional($match->lostItem->created_at)->format('H:i') ?? 'N/A' }}
                         </p>
+
                     </div>
                 </div>
 
@@ -242,12 +252,24 @@
                         </div>
                     </div>
 
-                    <div class="perforation">
-                        <p class="text-[11px] font-black text-slate-300 uppercase rotate-90 whitespace-nowrap mb-12 tracking-[0.8em]">Gate Log</p>
-                        <p class="text-2xl font-black text-slate-900 italic uppercase">Verified</p>
-                        <p class="text-[10px] font-bold text-slate-400 mt-2 font-mono tracking-tighter uppercase">
+                    {{-- 票根區域：使用 Flexbox 確保內容完美置中，消除多餘空位 --}}
+                    <div class="perforation flex flex-col items-center justify-center text-center p-4">
+                        
+                        {{-- 1. 標籤：縮小字距，改用 mb-3 保持緊湊感 --}}
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-3">
+                            Gate Log
+                        </p>
+
+                        {{-- 2. 狀態：Verified 字樣，加入 leading-none 防止多餘行高 --}}
+                        <p class="text-2xl font-black text-slate-900 italic leading-none uppercase">
+                            Verified
+                        </p>
+
+                        {{-- 3. Token：底部顯示縮短後的驗證碼 --}}
+                        <p class="text-[10px] font-bold text-slate-400 mt-3 font-mono tracking-tighter uppercase">
                             {{ substr($match->verification_token ?? '-', 0, 8) }}
                         </p>
+
                     </div>
                 </div>
 
@@ -318,12 +340,24 @@
                     </div>
 
                     {{-- 票根 --}}
-                    <div class="perforation">
-                        <p class="text-[11px] font-black text-slate-300 uppercase rotate-90 whitespace-nowrap mb-12 tracking-[0.8em]">Release Stub</p>
-                        <p class="text-2xl font-black text-slate-900 italic uppercase">Claimed</p>
-                        <p class="text-[10px] font-bold text-slate-400 mt-2 font-mono tracking-tighter uppercase">
+                   {{-- 票根區域：同步 Flexbox 置中佈局，消除空位並統一視覺感受 --}}
+                    <div class="perforation flex flex-col items-center justify-center text-center p-4">
+                        
+                        {{-- 1. 標籤：統一使用 tracking-[0.3em] 與 mb-3 --}}
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-3">
+                            Release Stub
+                        </p>
+
+                        {{-- 2. 狀態：Claimed 字樣，加入 leading-none 確保間距精確 --}}
+                        <p class="text-2xl font-black text-slate-900 italic leading-none uppercase">
+                            Claimed
+                        </p>
+
+                        {{-- 3. 日期：底部顯示交接日期，使用 mt-3 保持間距 --}}
+                        <p class="text-[10px] font-bold text-slate-400 mt-3 font-mono tracking-tighter uppercase">
                             {{ $handoverDate->format('M d, Y') }}
                         </p>
+
                     </div>
                 </div>
             </div>

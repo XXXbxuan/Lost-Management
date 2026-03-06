@@ -313,16 +313,25 @@ class ClaimController extends Controller
 
     public function showReceipt($matchId)
     {
-        // 🌟 調用現有的唯一方法，拿到 Match、Claim 和全量 AuditLogs
+        // 1. 拿到當前 Match 的完整數據（包含 LostItem, FoundItem, Claim）
         $data = $this->getCompleteCaseContext($matchId, 'match_id');
 
         if (!$data) {
             abort(404, 'Receipt not found.');
         }
 
+        // 🌟 2. 完善審計：當點擊 View 時，立即在資料庫產生一條 VIEW_RECEIPT 日誌
+        // 這樣你在 Audit Logs Page 就能看到這條紀錄了
+        \App\Models\AdminActionLog::create([
+            'admin_name'  => auth()->user()->name,
+            'action_type' => 'VIEW_RECEIPT', 
+            'target_name' => "Match #{$matchId}", 
+            'details'     => "Admin " . auth()->user()->name . " viewed the official receipt/manifest for Match #{$matchId}."
+        ]);
+
+        // 3. 返回收據視圖
         return view('staff.claims.receipt', $data);
     }
-
     public function getTimelineHtml($id)
     {
         $data = $this->getCompleteCaseContext($id, 'lost_id');
