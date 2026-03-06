@@ -99,7 +99,9 @@ Route::middleware('auth')->group(function () {
             // 1. 預設訪問此路由顯示 Stage 1 (照片對比頁 verify_action)
             // 2. 帶上 ?step=2 參數則顯示 Stage 2 (輸入 IC 頁 enter_ic)
             Route::get('/{id}/handover', [ClaimController::class, 'handover'])->name('handover');
-            
+            // 🌟 檢查旅客是否已確認預約的 AJAX 路由
+            Route::get('/check-confirmation/{id}', [ClaimController::class, 'checkConfirmation'])->name('check_confirmation');
+
             Route::get('/{id}/timeline-html', [ClaimController::class, 'getTimelineHtml'])->name('timeline_html');
 
             // 最終結案動作 (POST)

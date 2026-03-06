@@ -10,27 +10,33 @@ class Claim extends Model
     use HasFactory;
 
     protected $fillable = [
-        'lostId', 'foundId', 'processedBy', 
-        'claimerName', 'claimerIcPassport', 'claimerPhone', 'claimedAt'
+        'lostId', 
+        'foundId', 
+        'processedBy', 
+        'claimerName', 
+        'claimerIcPassport', 
+        'claimerPhone', 
+        'claimedAt',
+        'handover_photo' // 🌟 補上這個！允許存入現場結案照片
     ];
 
     protected $casts = [
         'claimedAt' => 'datetime',
     ];
 
-    // 1. 关联：找到对应的 Found Item (显示物品名字)
+    // 1. 關聯：找到對應的 Found Item (顯示物品名字)
     public function foundItem()
     {
         return $this->belongsTo(FoundItem::class, 'foundId');
     }
 
-    // 2. 🌟 关联：已統一改為 lostItem！找到对应的 Lost Report (显示乘客信息)
+    // 2. 🌟 關聯：找到對應的 Lost Report (顯示乘客信息)
     public function lostItem()
     {
         return $this->belongsTo(LostItemReport::class, 'lostId');
     }
 
-    // 3. 关联：找到经手的员工 (显示 User 表里的 name)
+    // 3. 關聯：找到經手的員工 (顯示 User 表裡的 name)
     public function handler()
     {
         return $this->belongsTo(User::class, 'processedBy');

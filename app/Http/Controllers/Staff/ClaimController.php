@@ -171,6 +171,17 @@ class ClaimController extends Controller
         }
         return response()->json(['status' => 'waiting']);
     }
+    /**
+ * 🌟 AJAX 檢查預約是否已確認
+ */
+    public function checkConfirmation($id)
+    {
+        $match = \App\Models\MatchRecord::findOrFail($id);
+        
+        return response()->json([
+            'is_confirmed' => (bool) $match->is_confirmed
+        ]);
+    }
 
     /**
      * 🌟 6. 顯示對比圖 (這就是你原本就有的 verify_action 頁面)
@@ -180,37 +191,67 @@ class ClaimController extends Controller
     /**
      * 7. 最終領取確認 (Handover)
      */
+    /**
+     * 7. 最終領取確認 (Handover) - 記錄真實姓名與現場證據照片
+     */
     public function completeHandover(Request $request, $id)
     {
+        // 1. 嚴格驗證所有傳入的資料 (包含圖片格式與大小限制)
         $request->validate([
-            'passenger_ic' => 'required|string|max:50',
+            'passenger_name_ic' => 'required|string|max:255',
+            'passenger_ic'      => 'required|string|max:50',
+            'handover_photo'    => 'required|image|mimes:jpeg,png,jpg|max:5120', // 最大 5MB
         ]);
 
         $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
         
-        // ... (這裡維持你原本的 DB::transaction 邏輯) ...
-        // 成功後 redirect 到 index 並帶上 success 訊息
-        
-        DB::transaction(function () use ($match, $request) {
-            $match->update([
-                'status'       => 'Claimed',
-                'verifiedBy'   => auth()->id(), 
-                'verifiedAt'   => now(), 
-                'passenger_ic' => $request->passenger_ic,
-            ]);
+        try {
+            DB::transaction(function () use ($match, $request) {
+                
+                // 2. 處理現場領取照片儲存 (會存到 storage/app/public/handover_photos)
+                $photoPath = null;
+                if ($request->hasFile('handover_photo')) {
+                    $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
+                }
 
-            $match->lostItem->update(['status' => 'Claimed']);
-            $match->foundItem->update(['status' => 'Claimed']);
+                // 🌟 3. 核心：建立正式的 Claim (領取) 紀錄！(存入我們剛救回來的 Claim 表)
+                Claim::create([
+                    'lostId'            => $match->lostId,
+                    'foundId'           => $match->foundId,
+                    'claimerName'       => $request->passenger_name_ic, // 存入證件上的真實姓名
+                    'claimerIcPassport' => $request->passenger_ic,      // 存入證件號碼
+                    'claimerPhone'      => $match->lostItem->passenger_phone ?? 'N/A', // 繼承原本的電話
+                    'processedBy'       => auth()->id(),
+                    'claimedAt'         => now(),
+                    'handover_photo'    => $photoPath,                  // 🌟 存入照片路徑
+                ]);
 
-            AdminActionLog::create([
-                'admin_name'  => auth()->user()->name,
-                'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                'target_name' => "Passenger: " . ($match->lostItem->passenger_name ?? 'Unknown'),
-                'details'     => "Handed over Item: [{$match->foundItem->item_name}] via QR Code Security Verification. IC: {$request->passenger_ic}"
-            ]);
-        });
+                // 4. 更新 Match 紀錄狀態 (這裡只負責記錄配對已結案，不存 IC 了)
+                $match->update([
+                    'status'     => 'Claimed',
+                    'verifiedBy' => auth()->id(), 
+                    'verifiedAt' => now(), 
+                ]);
 
-        return redirect()->route('staff.claims.index')->with('success', '✅ Handover successful!');
+                // 5. 同步更新物品狀態為 Claimed
+                $match->lostItem->update(['status' => 'Claimed']);
+                $match->foundItem->update(['status' => 'Claimed']);
+
+                // 6. 寫入 Admin Log (記錄真實姓名與照片路徑，方便報警備查)
+                AdminActionLog::create([
+                    'admin_name'  => auth()->user()->name,
+                    'action_type' => 'ITEM_HANDOVER_SUCCESS',
+                    'target_name' => "Passenger: " . $request->passenger_name_ic,
+                    'details'     => "Handed over Item: [{$match->foundItem->item_name}]. Real Name: {$request->passenger_name_ic}, IC: {$request->passenger_ic}. Evidence Photo: {$photoPath}"
+                ]);
+            });
+
+            return redirect()->route('staff.claims.index')->with('success', '✅ Handover successful! Legal evidence safely stored in Claims database.');
+
+        } catch (\Exception $e) {
+            \Log::error("Critical Handover Error: " . $e->getMessage());
+            return back()->with('error', 'Critical Error: Data update or file upload failed. Please try again.');
+        }
     }
 
     
@@ -276,16 +317,20 @@ class ClaimController extends Controller
     {
         $lostItem = LostItemReport::findOrFail($id);
 
+        // 🌟 修正重點：把 where 改成 whereIn，同時包容 Verified 和 Claimed 兩種狀態！
         $match = MatchRecord::where('lostId', $lostItem->id)
-            ->where('status', 'Verified')
+            ->whereIn('status', ['Verified', 'Claimed'])
+            ->latest() // 預防萬一，確保抓到最新的一筆紀錄
             ->first();
 
+        // 如果連 Claimed 或 Verified 的紀錄都沒有，才顯示沒有資料
         if (!$match || !$match->foundItem) {
-            return '<div class="p-6 text-center text-gray-500">No verified timeline data.</div>';
+            return '<div class="p-6 text-center text-gray-500 font-bold">No verified or claimed timeline data available.</div>';
         }
 
         $foundItem = $match->foundItem;
 
+        // ✅ 成功抓到資料，渲染你做好的通用時間軸
         return view('staff.claims.partials.timeline', compact('foundItem', 'match'))->render();
     }
 }
