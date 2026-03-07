@@ -75,7 +75,7 @@
                             <div>
                                 <label>Internal Storage ID</label>
                                 {{-- 🌟 修正：如果 ID 消失，檢查 $match->foundItem->storage_slot 或 storage_id --}}
-                                <p class="text-xl font-black text-indigo-600 uppercase">{{ $match->foundItem->storage_slot ?? 'GEN-S1-04' }}</p>
+                                <p class="text-xl font-black text-indigo-600 uppercase">{{ $match->foundItem->storage_location ?? 'N/A' }}</p>
                             </div>
                             <div class="col-span-2 grid grid-cols-3 gap-4 border-t border-slate-50 pt-6">
                                 <div><label>Category/Brand</label><p class="text-sm font-black text-slate-800 uppercase">{{ $match->foundItem->category }} / {{ $match->foundItem->brand ?? 'N/A' }}</p></div>
@@ -85,9 +85,9 @@
                         </div>
                         <div class="staff-stamp">
                             <p class="text-[9px] font-bold text-slate-400 uppercase">Action: Registry Registry</p>
-                            <p class="text-sm font-black text-slate-900 uppercase leading-none mt-1">{{ $foundLog->admin_name ?? 'Admin' }}</p>
+                            <p class="text-sm font-black text-slate-900 uppercase leading-none mt-1">{{ $match->foundItem->staff->name ?? 'N/A' }}</p>
                             {{-- 🌟 修正：顯示員工真正的 ID --}}
-                            <p class="text-[11px] font-bold text-indigo-500 uppercase">Staff ID: #{{ $foundLog->admin_id ?? '1' }}</p>
+                            <p class="text-[11px] font-bold text-indigo-500 uppercase">Staff ID: #{{ $match->foundItem->staff_id ?? 'N/A' }}</p>
                         </div>
                     </div>
                     <div class="perforation">
@@ -145,6 +145,8 @@
                         </div>
 
                         {{-- 🌟 Staff Box (固定右下角，現在有足夠的 mb-32 保護) --}}
+                        <br>
+                        <br>
                         <br>
                         <div class="staff-stamp">
                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Action: Assisted Registry</p>
@@ -214,7 +216,9 @@
                                         <label>Security Auth Status</label>
                                         <div class="inline-block px-6 py-2 bg-slate-900 rounded-xl mt-2">
                                             {{-- 🌟 強制顯示 SCAN CONFIRMED --}}
-                                            <p class="text-[12px] font-black text-emerald-500 uppercase tracking-widest m-0">SCAN CONFIRMED</p>
+                                            <p class="text-[12px] font-black text-emerald-500 uppercase tracking-widest m-0">
+                                                {{ $qrStatus }}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -230,11 +234,11 @@
                                 <div class="mt-8 pt-6 border-t border-slate-100 space-y-2">
                                     <div class="flex justify-between items-center text-[11px]">
                                         <span class="font-bold text-slate-400 uppercase tracking-tighter">Confirm Appt:</span>
-                                        <span class="font-black text-slate-900">{{ optional($match->confirmed_at)->format('Y-m-d H:i') ?? '2026-03-06 22:41' }}</span>
+                                        <span class="font-black text-slate-900">{{ optional($match->confirmed_at)->format('Y-m-d H:i') ?? 'N/A' }}</span>
                                     </div>
                                     <div class="flex justify-between items-center text-[11px]">
                                         <span class="font-bold text-slate-400 uppercase tracking-tighter">Scan QR Time:</span>
-                                        <span class="font-black text-slate-900">{{ optional($match->verifiedAt)->format('Y-m-d H:i') ?? '2026-03-06 22:45' }}</span>
+                                        <span class="font-black text-slate-900">{{ optional($match->verifiedAt)->format('Y-m-d H:i') ?? 'N/A' }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -293,7 +297,7 @@
                                 <div>
                                     <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Verified ID Reference</label>
                                     <p class="text-base font-black text-red-600 uppercase tracking-widest mt-1">
-                                        {{ $icNumber }}
+                                        {{ $match->claim->claimerIcPassport ?? 'N/A' }}
                                     </p>
                                 </div>
 

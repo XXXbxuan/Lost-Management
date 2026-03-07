@@ -62,12 +62,14 @@ class ClaimController extends Controller
         // 我們掃描 target_name，只要包含 Lost ID 或 Found ID 的紀錄通通抓出來。
         // 這會自動包含你 Tinker 裡的：BLOCK_STAFF, SEND_APPOINTMENT, VERIFY_MATCH 等。
         $auditLogs = AdminActionLog::where(function($q) use ($match) {
-                        $q->where('target_name', 'like', "%#{$match->lostId}%")
-                        ->orWhere('target_name', 'like', "%#{$match->foundId}%")
-                        ->orWhere('target_name', 'like', "%Match #{$match->id}%");
-                    })
-                    ->orderBy('created_at', 'asc')
-                    ->get();
+        // ✅ Case-level: 只抓这一个 Match（包含 "Match #118" 和 "Match #118 (Lost #28 / Found #28)"）
+                $q->where('target_name', 'like', "%Match #{$match->id}%")
+
+                // ✅ Pair-level: 只抓这一对 Lost vs Found（精确匹配，避免混到 Lost #27 vs Found #28）
+                ->orWhere('target_name', '=', "Lost #{$match->lostId} vs Found #{$match->foundId}");
+            })
+            ->orderBy('created_at', 'asc')
+            ->get();
 
         // 5. 統一封裝回傳
         return [

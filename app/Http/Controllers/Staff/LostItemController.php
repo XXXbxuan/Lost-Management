@@ -174,30 +174,60 @@ class LostItemController extends Controller
             'found_id' => 'required',
             'outcome' => 'required|in:matched,not_matched',
             'notes' => 'required|string|max:500',
-            'similarity_score' => 'required', 
+            'similarity_score' => 'nullable',
+            'return_url' => 'nullable|string',
+            'source' => 'nullable|string',
         ]);
 
-        MatchRecord::create([
-            'lostId' => $request->lost_id,
-            'foundId' => $request->found_id,
-            'notes' => $request->notes,
-            'status' => $request->outcome == 'matched' ? 'Verified' : 'Rejected',
-            'verifiedBy' => auth()->id(),
-            'verifiedAt' => now(),
-            'similarityScore' => $request->similarity_score, 
-        ]);
+        $score = $request->similarity_score;
+        if ($request->outcome === 'not_matched' && ($score === null || $score === '')) {
+            $score = 0;
+        }
 
-        $action = $request->outcome == 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
+        $status = $request->outcome === 'matched' ? 'Verified' : 'Rejected';
+
+        MatchRecord::updateOrCreate(
+            ['lostId' => $request->lost_id, 'foundId' => $request->found_id],
+            [
+                'notes' => $request->notes,
+                'status' => $status,
+                'verifiedBy' => auth()->id(),
+                'verifiedAt' => now(),
+                'similarityScore' => $score,
+            ]
+        );
+
+        // ✅ Action type：Reject Claim 显示 REJECT_CLAIM
+        $action = $request->outcome === 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
+        if ($request->outcome === 'not_matched' && $request->input('source') === 'reject_claim') {
+            $action = 'REJECT_CLAIM';
+        }
+
         AdminActionLog::create([
             'admin_name'  => auth()->user()->name ?? 'Staff',
             'action_type' => $action,
             'target_name' => "Lost #{$request->lost_id} vs Found #{$request->found_id}",
-            'details'     => "Result: " . ucfirst($request->outcome) . ", Score: {$request->similarity_score}%. Note: {$request->notes}"
+            'details'     => "Result: " . ucfirst($request->outcome) . ", Score: {$score}%. Note: {$request->notes}"
         ]);
 
-        if ($request->outcome == 'matched') {
+        if ($request->outcome === 'matched') {
+            // ✅ matched：两边标记 Matched
             LostItemReport::where('id', $request->lost_id)->update(['status' => 'Matched']);
             FoundItem::where('id', $request->found_id)->update(['status' => 'Matched']);
+        } else {
+            // ✅ not_matched：Lost 回到 LOST
+            LostItemReport::where('id', $request->lost_id)->update(['status' => 'LOST']);
+
+            // ✅ not_matched：Found 释放回 Unclaimed（只在目前是 Matched 时才退回）
+            $found = FoundItem::find($request->found_id);
+            if ($found && $found->status === 'Matched') {
+                $found->update(['status' => 'Unclaimed']);
+            }
+        }
+
+        $returnUrl = $request->input('return_url');
+        if (!empty($returnUrl)) {
+            return redirect()->to($returnUrl)->with('success', 'Verification record saved.');
         }
 
         return redirect()->route('staff.lost-items.index')->with('success', 'Verification record saved.');

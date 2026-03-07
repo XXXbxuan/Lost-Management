@@ -45,8 +45,7 @@ class FoundItem extends Model
      */
     public function staff()
     {
-        // 如果你的 Staff 表主鍵是 id，請改為 'id'；如果真的是 'staff_id' 則保持不變
-        return $this->belongsTo(Staff::class, 'staff_id', 'id');
+        return $this->belongsTo(Staff::class, 'staff_id', 'staff_id');
     }
 
     /**
