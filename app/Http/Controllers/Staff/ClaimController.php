@@ -239,6 +239,8 @@ class ClaimController extends Controller
 
     public function handover(Request $request, $id)
     {
+        Cache::forget('staff_scan_' . auth()->id());
+        
         $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
         $view = ($request->query('step') == 2) ? 'staff.claims.enter_ic' : 'staff.claims.verify_action';
         
