@@ -19,11 +19,7 @@ class LostItemController extends Controller
         if ($status !== 'All') {
             $query->where('status', $status);
         }
-
-        // 🌟 已統一為 $lostItems
         $lostItems = $query->paginate(10);
-
-        // 🌟 傳給 View 的變數改為 'lostItems'
         return view('staff.lost_reports.index', compact('lostItems', 'status'));
     }
 
@@ -62,7 +58,6 @@ class LostItemController extends Controller
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::create($validated);
 
         AdminActionLog::create([
@@ -77,7 +72,6 @@ class LostItemController extends Controller
 
     public function show($id, Request $request)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($id);
 
         $rejectedIds = MatchRecord::where('lostId', $id)
@@ -111,7 +105,6 @@ class LostItemController extends Controller
                 });
             }
         } else {
-            // 🌟 這裡面的變數全部改為 $lostItem
             $query->where('category', $lostItem->category);
             if ($lostItem->lost_time) {
                  $query->whereDate('found_time', '>=', $lostItem->lost_time->format('Y-m-d'));
@@ -122,7 +115,6 @@ class LostItemController extends Controller
 
         foreach ($candidateMatches as $item) {
             $score = 0;
-            // 🌟 這裡面的變數全部改為 $lostItem
             if ($item->category == $lostItem->category) $score += 40;
             
             if (str_contains(strtolower($item->color), strtolower($lostItem->color)) || 
@@ -145,19 +137,15 @@ class LostItemController extends Controller
         
         $candidateMatches = $candidateMatches->sortByDesc('similarity_score');
         $rejectedItems = FoundItem::whereIn('id', $rejectedIds)->get();
-
-        // 🌟 傳給 View 的變數改為 'lostItem'
         return view('staff.lost_reports.show', compact('lostItem', 'candidateMatches', 'rejectedItems'));
     }
 
     public function verify($lost_id, $found_id, Request $request)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($lost_id);
         $foundItem = FoundItem::findOrFail($found_id);
         $score = $request->query('score', 0); 
         
-        // 🌟 傳給 View 的變數改為 'lostItem'
         return view('staff.lost_reports.verify', compact('lostItem', 'foundItem', 'score'));
     }
 
@@ -219,7 +207,6 @@ class LostItemController extends Controller
 
     public function getTimelineHtml($id)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($id);
         $match = MatchRecord::where('lostId', $lostItem->id)
                     ->where('status', 'Verified')

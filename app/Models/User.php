@@ -10,28 +10,19 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
-        'username',   // <--- FIXED: Matches your database column
+        'username',
         'email',
         'password',
-        'role',       // Passenger, Staff, or Admin
-        'points',     // For your Reward System
+        'role',
+        'points',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     */
     protected function casts(): array
     {
         return [
@@ -40,17 +31,11 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Helper: Check if user is Admin
-     */
     public function isAdmin(): bool
     {
         return $this->role === 'Admin';
     }
 
-    /**
-     * Relationship: User has one Staff profile
-     */
     public function staff()
     {
         return $this->hasOne(Staff::class, 'user_id');

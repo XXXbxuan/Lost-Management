@@ -11,22 +11,21 @@ class FoundItemService
 {
     public function createFoundItem(array $data, $imageFile = null)
     {
-        // 1. 获取当前登录的 Staff
+        //get login staff
         $user = Auth::user();
 
-        // 2. 补全 Staff 信息
+        //staff info
         $data['staff_id'] = null; 
         $data['registered_by_name'] = $user ? $user->name : 'Unknown';
 
-        // 3. 处理图片上传
+        //process uploaded image
         if ($imageFile) {
             $data['image_path'] = $this->uploadImage($imageFile);
         }
 
-        // 4. 创建记录
+        //create history
         $item = FoundItem::create($data);
 
-        // 5. 写日志 (Audit Log)
         if ($user) {
             AdminActionLog::create([
                 'admin_name' => $user->name . ' (Staff)',
@@ -41,7 +40,6 @@ class FoundItemService
 
     private function uploadImage($file)
     {
-        // 存到 storage/app/public/found_items 文件夹
         return $file->store('found_items', 'public');
     }
 }

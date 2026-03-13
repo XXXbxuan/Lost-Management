@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Staff;
 use App\Models\User;
-use App\Models\FoundItem; // <--- Added for Chart
-use App\Models\LostItemReport;  // <--- Added for Chart (Assuming your model name)
+use App\Models\FoundItem;
+use App\Models\LostItemReport;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreStaffRequest;
 use App\Http\Requests\UpdateStaffRequest;
 use App\Services\StaffService;
 use App\Models\AdminActionLog;
-use Illuminate\Support\Facades\DB; // <--- Added for Chart Logic
+use Illuminate\Support\Facades\DB;
 
 class StaffController extends Controller
 {
@@ -23,24 +23,18 @@ class StaffController extends Controller
         $this->staffService = $staffService;
     }
 
-    /**
-     * NEW: Admin Analytics Dashboard with Pie Chart & Success Metrics
-     */
     public function dashboard()
     {
-        // 1. Calculate totals for the top summary cards
         $totalFound = FoundItem::count();
         $totalLost = LostItemReport::count(); 
         $totalStaff = Staff::count();
 
-        // 🌟 NEW: Calculate Recovery Success Rate (KPI)
-        // Count how many Lost Reports are marked as 'Claimed'
+        //Count how many Lost Reports are marked as 'Claimed'
         $successfulRecoveries = LostItemReport::where('status', 'Claimed')->count();
         
-        // Calculate percentage: (Claimed / Total Reports) * 100
+        //Calculate percentage: (Claimed / Total Reports) * 100
         $successRate = $totalLost > 0 ? round(($successfulRecoveries / $totalLost) * 100, 1) : 0;
 
-        // 2. Aggregate Found Items by Category (Pie Chart)
         $categories = FoundItem::select('category', DB::raw('count(*) as total'))
             ->groupBy('category')
             ->pluck('total', 'category')
@@ -49,7 +43,6 @@ class StaffController extends Controller
         $categoryLabels = array_keys($categories);
         $categoryData = array_values($categories);
 
-        // 3. Get Top 5 "Hotspot" Locations (Horizontal Bar Chart)
         $hotspots = FoundItem::select('found_location', DB::raw('count(*) as total'))
             ->groupBy('found_location')
             ->orderBy('total', 'desc') 
@@ -60,12 +53,11 @@ class StaffController extends Controller
         $hotspotLabels = array_keys($hotspots);
         $hotspotData = array_values($hotspots);
 
-        // 4. Return to view with the new successRate variable
         return view('admin.dashboard', compact(
             'totalFound', 
             'totalLost', 
             'totalStaff',
-            'successRate',       // <--- Added for Success Rate Card
+            'successRate',
             'categoryLabels', 
             'categoryData',
             'hotspotLabels', 
@@ -182,15 +174,11 @@ class StaffController extends Controller
                          ->with('success', 'Staff deleted. Email is now free to use. History saved to logs.');
     }
 
-    /**
-     * NEW: Professional Export to Excel (CSV) Feature
-     */
     public function exportFoundItems()
     {
         $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
         
-        // Get all found items, sorted by newest first
-        $items = \App\Models\FoundItem::orderBy('created_at', 'desc')->get();
+        $items = \App\Models\FoundItem::orderBy('id', 'asc')->get();
 
         $headers = [
             "Content-type"        => "text/csv",
@@ -200,16 +188,13 @@ class StaffController extends Controller
             "Expires"             => "0"
         ];
 
-        // The columns you want in your Excel file
         $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
 
         $callback = function() use($items, $columns) {
             $file = fopen('php://output', 'w');
             
-            // Write the header row
             fputcsv($file, $columns);
 
-            // Write the data rows
             foreach ($items as $item) {
                 fputcsv($file, [
                     $item->id,

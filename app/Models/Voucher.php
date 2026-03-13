@@ -8,5 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 class Voucher extends Model
 {
     use HasFactory;
-    protected $guarded = []; // Allows easy data entry
+    protected $guarded = [];
 }

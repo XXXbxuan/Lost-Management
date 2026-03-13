@@ -30,7 +30,7 @@
                     {{-- ADMIN ONLY --}}
                     @if(Auth::user()->role === 'Admin')
                         <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                            📊 {{ __('Analytics Chart') }}
+                            {{ __('Analytics Chart') }}
                         </x-nav-link>
                         
                         <x-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">

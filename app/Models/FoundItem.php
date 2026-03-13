@@ -9,7 +9,6 @@ class FoundItem extends Model
 {
     use HasFactory;
 
-    // 指定表名
     protected $table = 'found_items';
 
     protected $fillable = [
@@ -29,13 +28,10 @@ class FoundItem extends Model
         'registered_by_name',
     ];
 
-    // 🔥 [新增] 关键设置：告诉 Laravel found_time 是时间格式
-    // 如果没有这行，Controller 里的 ->format() 就会报错！
     protected $casts = [
         'found_time' => 'datetime',
     ];
 
-    // 关联 Staff
     public function staff()
     {
         return $this->belongsTo(Staff::class, 'staff_id', 'staff_id');

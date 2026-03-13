@@ -12,30 +12,19 @@ use Carbon\Carbon;
 
 class PickupController extends Controller
 {
-    /**
-     * 1. 顯示確認頁面
-     * 旅客點擊 Email #1 的連結後到達此處
-     */
     public function showConfirmationPage($token)
     {
-        // 🌟 預先加載關聯數據，確保頁面資訊完整且變數名統一為 lostItem
         $match = MatchRecord::where('verification_token', $token)
                     ->with(['foundItem', 'lostItem']) 
                     ->firstOrFail();
 
-        // 如果已經確認過，直接送他去 QR Code 狀態頁面
         if ($match->is_confirmed) {
             return redirect()->route('pickup.verify', ['token' => $token]);
         }
 
-        // 💡 返回獨立 HTML 視圖，徹底避開後台 Layout 的 $slot 報錯
         return view('passenger.confirm_pickup', compact('match'));
     }
 
-    /**
-     * 2. 處理確認動作
-     * 旅客在網頁按下 "CONFIRM" 按鈕後觸發
-     */
     public function processConfirmation($token)
     {
         // 🌟 預先加載關聯，因為寄信時會用到 $match->lostItem->passenger_email

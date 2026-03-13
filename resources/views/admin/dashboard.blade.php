@@ -8,7 +8,8 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {{-- 1. SUMMARY CARDS WITH NEW SUCCESS RATE --}}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500 hover:shadow-md transition">
                     <div class="text-sm font-bold text-gray-500 uppercase">Total Found Items</div>
                     <div class="text-3xl font-bold text-gray-800">{{ $totalFound }}</div>
@@ -23,10 +24,17 @@
                     <div class="text-sm font-bold text-gray-500 uppercase">Registered Staff</div>
                     <div class="text-3xl font-bold text-gray-800">{{ $totalStaff }}</div>
                 </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500 hover:shadow-md transition">
+                    <div class="text-sm font-bold text-gray-500 uppercase">Recovery Success Rate</div>
+                    <div class="text-3xl font-bold text-green-600">{{ $successRate }}%</div>
+                </div>
             </div>
 
+            {{-- 2. CHARTS SECTION --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 
+                {{-- Items by Category --}}
                 <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-100">
                     <h3 class="text-lg font-bold text-gray-700 mb-2">📦 Items by Category</h3>
                     <p class="text-xs text-gray-500 mb-6">Distribution of recovered items.</p>
@@ -35,6 +43,7 @@
                     </div>
                 </div>
 
+                {{-- Hotspots --}}
                 <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-100">
                     <h3 class="text-lg font-bold text-gray-700 mb-2">📍 Top 5 Lost & Found Hotspots</h3>
                     <p class="text-xs text-gray-500 mb-6">Locations where items are most frequently found.</p>
@@ -42,9 +51,9 @@
                         <canvas id="hotspotsBarChart"></canvas>
                     </div>
                 </div>
-
             </div>
 
+            {{-- 3. EXPORT SECTION --}}
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center">
                 <div>
                     <h3 class="font-bold text-gray-700">Need to generate a report?</h3>
@@ -87,27 +96,27 @@
             // --- 2. HORIZONTAL BAR CHART (Hotspots) ---
             const barCtx = document.getElementById('hotspotsBarChart').getContext('2d');
             new Chart(barCtx, {
-                type: 'bar', // Set to bar
+                type: 'bar',
                 data: {
                     labels: {!! json_encode($hotspotLabels) !!},
                     datasets: [{
                         label: 'Total Items Found',
                         data: {!! json_encode($hotspotData) !!},
-                        backgroundColor: '#3B82F6', // Professional blue color
-                        borderRadius: 4 // Rounds the corners of the bars
+                        backgroundColor: '#3B82F6',
+                        borderRadius: 4
                     }]
                 },
                 options: {
-                    indexAxis: 'y', // THIS makes it horizontal!
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false } // Hides the legend since we only have one color
+                        legend: { display: false }
                     },
                     scales: {
                         x: {
                             beginAtZero: true,
-                            ticks: { stepSize: 1 } // Prevents decimals like 1.5 items
+                            ticks: { stepSize: 1 }
                         }
                     }
                 }

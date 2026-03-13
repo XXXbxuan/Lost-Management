@@ -24,7 +24,6 @@ class MatchRecord extends Model
         'is_confirmed' => 'boolean',
     ];
 
-    // ✅ 統一使用 lostItem
     public function lostItem()
     {
         return $this->belongsTo(LostItemReport::class, 'lostId');
