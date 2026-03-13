@@ -17,13 +17,10 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Passenger Dashboard
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::get('/staff/dashboard', function () {
-    return view('dashboard'); 
-})->middleware(['auth', 'verified'])->name('staff.dashboard');
 
 Route::get('auth/google', [AuthenticatedSessionController::class, 'redirectToGoogle'])->name('google.login');
 Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'handleGoogleCallback']);
@@ -50,12 +47,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/rewards', [DashboardController::class, 'showRewards'])->name('rewards');
         Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
         Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
-        Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
         Route::post('/voucher/{id}/use', [DashboardController::class, 'useVoucher'])->name('voucher.use');
     });
 
     Route::prefix('staff')->name('staff.')->group(function () {
         
+        Route::get('/export/found-items', [FoundItemController::class, 'exportFoundItems'])->name('export.found_items');
+        Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+        
+        Route::get('/export/found-items', [StaffController::class, 'exportFoundItems'])->name('export.found_items');
+
         Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store']);
         Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
 
@@ -83,7 +84,6 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
     Route::get('/export/found-items', [StaffController::class, 'exportFoundItems'])->name('export.found_items');
-    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
     Route::resource('staff', StaffController::class);
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
 });

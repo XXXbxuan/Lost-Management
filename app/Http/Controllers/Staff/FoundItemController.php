@@ -104,4 +104,41 @@ class FoundItemController extends Controller
 
         return response()->json($occupiedSlots);
     }
+
+    public function exportFoundItems()
+    {
+        $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
+        
+        $items = \App\Models\FoundItem::orderBy('id', 'asc')->get();
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
+
+        $callback = function() use($items, $columns) {
+            $file = fopen('php://output', 'w');
+            
+            fputcsv($file, $columns);
+
+            foreach ($items as $item) {
+                fputcsv($file, [
+                    $item->id,
+                    $item->item_name,
+                    $item->category,
+                    $item->found_location,
+                    $item->status,
+                    $item->created_at->format('Y-m-d H:i:s')
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }

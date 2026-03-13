@@ -29,10 +29,6 @@
 
                     {{-- ADMIN ONLY --}}
                     @if(Auth::user()->role === 'Admin')
-                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                            {{ __('Analytics Chart') }}
-                        </x-nav-link>
-                        
                         <x-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
                             {{ __('Staff Management') }}
                         </x-nav-link>
@@ -43,6 +39,11 @@
 
                     {{-- STAFF & ADMIN --}}
                     @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
+                        {{-- Smart Route: Sends Admin to admin route, Staff to staff route --}}
+                        <x-nav-link :href="Auth::user()->role === 'Admin' ? route('admin.dashboard') : route('staff.dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard')">
+                            {{ __('Analytics Chart') }}
+                        </x-nav-link>
+                        
                         <x-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                             {{ __('Vouchers') }}
                         </x-nav-link>
@@ -118,11 +119,7 @@
                 </x-responsive-nav-link>
             @endif
             
-            {{-- NEW: Added Admin Links to Mobile Menu too! --}}
             @if(Auth::user()->role === 'Admin')
-                <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                    📊 {{ __('Analytics Chart') }}
-                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
                     {{ __('Staff Management') }}
                 </x-responsive-nav-link>
@@ -132,6 +129,11 @@
             @endif
 
             @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
+                {{-- Smart Route for Mobile Menu --}}
+                <x-responsive-nav-link :href="Auth::user()->role === 'Admin' ? route('admin.dashboard') : route('staff.dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard')">
+                    {{ __('Analytics Chart') }}
+                </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                     {{ __('Vouchers') }}
                 </x-responsive-nav-link>
