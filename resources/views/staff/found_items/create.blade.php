@@ -88,6 +88,12 @@
                                     <label class="block font-medium text-sm text-gray-700">Specific Description</label>
                                     <textarea name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. Under seat 12A"></textarea>
                                 </div>
+
+                                <div class="md:col-span-2 mt-2 p-4 bg-green-50 border border-green-200 rounded-md">
+                                    <label class="block font-bold text-sm text-green-800">🎁 Finder's Email (Optional - To award 100 points)</label>
+                                    <input type="email" name="finder_email" class="mt-1 block w-full rounded-md border-green-300 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="e.g. passenger@gmail.com">
+                                    <p class="text-xs text-green-600 mt-1">If a passenger handed this in, enter their registered email to instantly reward them!</p>
+                                </div>
                             </div>
 
                             <div class="flex justify-between mt-6">
@@ -103,10 +109,8 @@
                                  slot: '01',
                                  occupiedList: [],
                                  
-                                 // 这个函数会自动去后台检查
                                  checkSlots() {
                                      if(this.zone && this.shelf) {
-                                         // 你的小助手 API 路径
                                          fetch(`{{ route('staff.check-slots') }}?zone=${this.zone}&shelf=${this.shelf}`)
                                              .then(res => res.json())
                                              .then(data => {
@@ -144,9 +148,7 @@
                                         <select name="slot" x-model="slot" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                                             @for ($i = 1; $i <= 10; $i++)
                                                 @php $slotVal = sprintf('%02d', $i); @endphp <option value="{{ $slotVal }}"
-                                                        {{-- 如果 occupiedList 包含这个 Slot (注意格式匹配) --}}
                                                         x-bind:disabled="occupiedList.includes('{{ $slotVal }}')"
-                                                        {{-- 如果被占用了，文字变色或改名 --}}
                                                         x-text="occupiedList.includes('{{ $slotVal }}') ? 'Slot {{ $slotVal }} (Occupied)' : 'Slot {{ $slotVal }}'">
                                                 </option>
                                             @endfor

@@ -45,7 +45,8 @@ class FoundItem extends Model
      */
     public function staff()
     {
-        return $this->belongsTo(Staff::class, 'staff_id', 'staff_id');
+        // 註：請確認你的 Staff Model 名稱是 Staff 還是 User
+        return $this->belongsTo(User::class, 'staff_id');
     }
 
     /**
@@ -64,6 +65,7 @@ class FoundItem extends Model
      */
     public function auditLogs()
     {
+        // 這是一個動態查詢，會抓取日誌中提到此 ID 的紀錄
         return AdminActionLog::where('target_name', 'like', "%#{$this->id}%")
             ->orWhere('target_name', 'like', "%{$this->item_name}%")
             ->orderBy('created_at', 'asc')

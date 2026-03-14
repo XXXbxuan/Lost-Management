@@ -1,17 +1,14 @@
 <?php
 
-namespace App\Services; // [必须] 确保这里是 App\Services
+namespace App\Services;
 
 use App\Models\User;
 use App\Models\Staff;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
-class StaffService // [必须] 类名必须和文件名 StaffService 一模一样
+class StaffService
 {
-    /**
-     * 创建新员工
-     */
     public function createStaff(array $data)
     {
         return DB::transaction(function () use ($data) {
@@ -33,9 +30,6 @@ class StaffService // [必须] 类名必须和文件名 StaffService 一模一�
         });
     }
 
-    /**
-     * 更新员工资料
-     */
     public function updateStaff(Staff $staff, array $data)
     {
         return DB::transaction(function () use ($staff, $data) {
@@ -62,9 +56,6 @@ class StaffService // [必须] 类名必须和文件名 StaffService 一模一�
         });
     }
 
-    /**
-     * 封禁/解封员工
-     */
     public function toggleStatus(Staff $staff)
     {
         $newStatus = ($staff->status === 'Active') ? 'Blocked' : 'Active';

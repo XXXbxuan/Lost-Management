@@ -9,16 +9,16 @@ class LostItemReport extends Model
 {
     use HasFactory;
 
-    // 这一行保护数据不被恶意修改，同时允许这些字段被存入
     protected $fillable = [
-        // 乘客信息
-        'staff_id', // 🌟 補上這行
+        // 🌟 1. 管理信息：紀錄是哪位 Staff 幫忙登記的
+        'staff_id', 
+
+        // 2. 乘客信息
         'passenger_name',
         'passenger_email',
         'passenger_phone',
 
-
-        // 物品详情 (来自组件)
+        // 3. 物品詳情
         'item_name',
         'category',
         'brand',
@@ -26,26 +26,36 @@ class LostItemReport extends Model
         'serial_number',
         'image_path',
 
-        // 丢失地点
+        // 4. 遺失地點與時間
         'lost_location',
         'flight_number',
         'lost_time',
         'description',
 
-        // 状态
+        // 5. 狀態系統 (LOST / Matched / Claimed / Rejected)
         'status',
     ];
-    protected $guarded = [];
 
-    // 🔥 [新增] 告诉 Laravel 这些字段是时间，不是文字！
+    /**
+     * 🌟 數據類型轉換 (Casts)
+     * 確保 lost_time 被視為 Carbon 對象，方便格式化顯示。
+     */
     protected $casts = [
         'lost_time' => 'datetime',
     ];
 
+    /**
+     * 🌟 關聯：找到負責登記此報失單的員工
+     */
     public function staff()
     {
         return $this->belongsTo(User::class, 'staff_id', 'id');
     }
+
+    /**
+     * 🌟 關聯：獲取關於此報失單的所有操作日誌
+     * 方便查看此單據何時被建立、何時被修改。
+     */
     public function logs()
     {
         return $this->hasMany(AdminActionLog::class, 'target_name', 'item_name');

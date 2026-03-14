@@ -9,7 +9,6 @@
                 </div>
 
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
@@ -39,6 +38,10 @@
 
                     {{-- STAFF & ADMIN SHARED LINKS --}}
                     @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
+                        <x-nav-link :href="Auth::user()->role === 'Admin' ? route('admin.dashboard') : route('staff.dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard')">
+                            {{ __('Analytics Chart') }}
+                        </x-nav-link>
+                        
                         <x-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                             {{ __('Vouchers') }}
                         </x-nav-link>
@@ -51,10 +54,10 @@
                             {{ __('Lost Reports') }}
                         </x-nav-link>
 
+                        {{-- 🌟 保留這行：讓員工可以查看歷史領取紀錄 --}}
                         <x-nav-link :href="route('staff.claims.index')" :active="request()->routeIs('staff.claims.index')">
                             {{ __('Claim History') }}
                         </x-nav-link>
-                        
                     @endif
                 </div>
             </div>
@@ -120,19 +123,29 @@
                 </x-responsive-nav-link>
             @endif
             
+            @if(Auth::user()->role === 'Admin')
+                <x-responsive-nav-link :href="route('admin.staff.index')" :active="request()->routeIs('admin.staff.*')">
+                    {{ __('Staff Management') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.logs.index')" :active="request()->routeIs('admin.logs.index')">
+                    {{ __('Audit Logs') }}
+                </x-responsive-nav-link>
+            @endif
+
             @if(Auth::user()->role === 'Staff' || Auth::user()->role === 'Admin')
+                <x-responsive-nav-link :href="Auth::user()->role === 'Admin' ? route('admin.dashboard') : route('staff.dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard')">
+                    {{ __('Analytics Chart') }}
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                     {{ __('Vouchers') }}
                 </x-responsive-nav-link>
-                
                 <x-responsive-nav-link :href="route('staff.found-items.index')" :active="request()->routeIs('staff.found-items.*')">
                     {{ __('Found Items') }}
                 </x-responsive-nav-link>
-
                 <x-responsive-nav-link :href="route('staff.lost-items.index')" :active="request()->routeIs('staff.lost-items.*')">
                     {{ __('Lost Reports') }}
                 </x-responsive-nav-link>
-
+                {{-- 🌟 行動版也加上 Claim History --}}
                 <x-responsive-nav-link :href="route('staff.claims.index')" :active="request()->routeIs('staff.claims.index')">
                     {{ __('Claim History') }}
                 </x-responsive-nav-link>
@@ -144,12 +157,10 @@
                 <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
                 <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
             </div>
-
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile.edit')">
                     {{ __('Profile') }}
                 </x-responsive-nav-link>
-
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <x-responsive-nav-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">

@@ -9,6 +9,6 @@ class PasswordResetCode extends Model
 {
     use HasFactory;
 
-    public $timestamps = false; // We only need created_at manually
+    public $timestamps = false;
     protected $fillable = ['email', 'code', 'created_at'];
 }

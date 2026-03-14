@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Models; // 或是 App\Services; 依據你的檔案位置
+
 namespace App\Services;
 
 use App\Models\FoundItem;
@@ -10,30 +12,30 @@ class FoundItemService
 {
     public function createFoundItem(array $data, $imageFile = null)
     {
-        // 1. 获取当前登录的 User（Admin/Staff）
+        // 1. 獲取當前登入的 User（Admin/Staff）
         $user = Auth::user();
 
-        // 2. ✅ 补全 Staff 信息（不要再覆盖成 null）
-        //    你系统：User hasOne Staff(profile)，staff 表主键是 staff_id
+        // 2. ✅ 補全 Staff 資訊（你的版本：確保資料庫能追蹤到是誰登記的）
+        // 邏輯：User hasOne Staff，staff 表主鍵是 staff_id
         if ($user && $user->staff) {
             $data['staff_id'] = $user->staff->staff_id;
         } else {
-            // fallback：至少不要 NULL（极端情况下）
+            // fallback：極端情況下至少記錄 User ID
             $data['staff_id'] = $user?->id;
         }
 
-        // registered_by_name：优先 username，其次 name
+        // 3. 註冊名稱：優先取 username，其次 name，最後 Unknown
         $data['registered_by_name'] = $user?->username ?? $user?->name ?? 'Unknown';
 
-        // 3. 处理图片上传
+        // 4. 處理圖片上傳
         if ($imageFile) {
             $data['image_path'] = $this->uploadImage($imageFile);
         }
 
-        // 4. 创建记录
+        // 5. 建立拾獲紀錄
         $item = FoundItem::create($data);
 
-        // 5. 写日志 (Audit Log)
+        // 6. 寫入審計日誌（AdminActionLog）
         if ($user) {
             AdminActionLog::create([
                 'admin_name'  => $data['registered_by_name'],
@@ -48,7 +50,6 @@ class FoundItemService
 
     private function uploadImage($file)
     {
-        // 存到 storage/app/public/found_items 文件夹
         return $file->store('found_items', 'public');
     }
 }

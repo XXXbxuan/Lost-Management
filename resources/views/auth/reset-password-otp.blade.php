@@ -10,7 +10,7 @@
 
         <div class="mt-4">
             <label class="block font-medium text-sm text-gray-700">Enter 6-Digit Code</label>
-            <input class="block mt-1 w-full border-gray-300 rounded-md shadow-sm text-center text-2xl tracking-widest" type="text" name="code" required />
+            <input class="block mt-1 w-full border-gray-300 rounded-md shadow-sm text-2xl tracking-widest" type="text" name="code" required />
             @error('code') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
         </div>
 

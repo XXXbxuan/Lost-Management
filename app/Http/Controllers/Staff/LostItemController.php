@@ -19,11 +19,7 @@ class LostItemController extends Controller
         if ($status !== 'All') {
             $query->where('status', $status);
         }
-
-        // 🌟 已統一為 $lostItems
         $lostItems = $query->paginate(10);
-
-        // 🌟 傳給 View 的變數改為 'lostItems'
         return view('staff.lost_reports.index', compact('lostItems', 'status'));
     }
 
@@ -62,15 +58,15 @@ class LostItemController extends Controller
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
-        // 🌟 核心修正：在這裡偷偷把當前登入的 Staff ID 塞進去
-        // 這樣資料庫就會記下「是這位員工幫忙建立這筆報失單的」
+        // 🌟 核心修正：合併了你的 Staff ID 紀錄功能
         if (auth()->check()) {
             $validated['staff_id'] = auth()->id();
         }
 
-        // 🌟 已統一為 $lostItem，現在它會帶著 staff_id 一起存進去！
+        // 建立報失單
         $lostItem = LostItemReport::create($validated);
 
+        // 🌟 合併了朋友的 AdminActionLog 日誌功能
         AdminActionLog::create([
             'admin_name'  => auth()->user()->name ?? 'Staff', 
             'action_type' => 'CREATE_LOST_REPORT',
@@ -83,9 +79,9 @@ class LostItemController extends Controller
 
     public function show($id, Request $request)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($id);
 
+        // 核心邏輯：過濾掉已經被 Reject 的物品，實現「鎖定」效果
         $rejectedIds = MatchRecord::where('lostId', $id)
             ->where('status', 'Rejected')
             ->pluck('foundId');
@@ -96,18 +92,10 @@ class LostItemController extends Controller
         $isManualSearch = $request->has('search');
 
         if ($isManualSearch) {
-            if ($request->filled('category') && $request->input('category') != '') {
-                $query->where('category', $request->input('category'));
-            }
-            if ($request->filled('location') && $request->input('location') != '') {
-                $query->where('found_location', $request->input('location'));
-            }
-            if ($request->filled('date_from')) {
-                $query->whereDate('found_time', '>=', $request->input('date_from'));
-            }
-            if ($request->filled('date_to')) {
-                $query->whereDate('found_time', '<=', $request->input('date_to'));
-            }
+            if ($request->filled('category')) $query->where('category', $request->input('category'));
+            if ($request->filled('location')) $query->where('found_location', $request->input('location'));
+            if ($request->filled('date_from')) $query->whereDate('found_time', '>=', $request->input('date_from'));
+            if ($request->filled('date_to')) $query->whereDate('found_time', '<=', $request->input('date_to'));
             if ($request->filled('keyword')) {
                 $search = $request->input('keyword');
                 $query->where(function($q) use ($search) {
@@ -117,7 +105,6 @@ class LostItemController extends Controller
                 });
             }
         } else {
-            // 🌟 這裡面的變數全部改為 $lostItem
             $query->where('category', $lostItem->category);
             if ($lostItem->lost_time) {
                  $query->whereDate('found_time', '>=', $lostItem->lost_time->format('Y-m-d'));
@@ -126,44 +113,32 @@ class LostItemController extends Controller
 
         $candidateMatches = $query->latest()->get();
 
+        // 相似度算法
         foreach ($candidateMatches as $item) {
             $score = 0;
-            // 🌟 這裡面的變數全部改為 $lostItem
             if ($item->category == $lostItem->category) $score += 40;
-            
             if (str_contains(strtolower($item->color), strtolower($lostItem->color)) || 
-                str_contains(strtolower($lostItem->color), strtolower($item->color))) {
-                $score += 30;
-            }
-            
+                str_contains(strtolower($lostItem->color), strtolower($item->color))) $score += 30;
             if ($item->found_location == $lostItem->lost_location) $score += 20;
-            
             if (str_contains(strtolower($item->item_name), strtolower($lostItem->item_name))) $score += 10;
-
             $item->similarity_score = min($score, 100);
         }
 
         if (!$isManualSearch) {
-            $candidateMatches = $candidateMatches->filter(function ($item) {
-                return $item->similarity_score >= 50; 
-            });
+            $candidateMatches = $candidateMatches->filter(fn($item) => $item->similarity_score >= 50);
         }
         
         $candidateMatches = $candidateMatches->sortByDesc('similarity_score');
         $rejectedItems = FoundItem::whereIn('id', $rejectedIds)->get();
 
-        // 🌟 傳給 View 的變數改為 'lostItem'
         return view('staff.lost_reports.show', compact('lostItem', 'candidateMatches', 'rejectedItems'));
     }
 
     public function verify($lost_id, $found_id, Request $request)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($lost_id);
         $foundItem = FoundItem::findOrFail($found_id);
         $score = $request->query('score', 0); 
-        
-        // 🌟 傳給 View 的變數改為 'lostItem'
         return view('staff.lost_reports.verify', compact('lostItem', 'foundItem', 'score'));
     }
 
@@ -179,11 +154,7 @@ class LostItemController extends Controller
             'source' => 'nullable|string',
         ]);
 
-        $score = $request->similarity_score;
-        if ($request->outcome === 'not_matched' && ($score === null || $score === '')) {
-            $score = 0;
-        }
-
+        $score = $request->similarity_score ?? 0;
         $status = $request->outcome === 'matched' ? 'Verified' : 'Rejected';
 
         MatchRecord::updateOrCreate(
@@ -197,7 +168,7 @@ class LostItemController extends Controller
             ]
         );
 
-        // ✅ Action type：Reject Claim 显示 REJECT_CLAIM
+        // 判定日誌類型
         $action = $request->outcome === 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
         if ($request->outcome === 'not_matched' && $request->input('source') === 'reject_claim') {
             $action = 'REJECT_CLAIM';
@@ -211,23 +182,18 @@ class LostItemController extends Controller
         ]);
 
         if ($request->outcome === 'matched') {
-            // ✅ matched：两边标记 Matched
             LostItemReport::where('id', $request->lost_id)->update(['status' => 'Matched']);
             FoundItem::where('id', $request->found_id)->update(['status' => 'Matched']);
         } else {
-            // ✅ not_matched：Lost 回到 LOST
             LostItemReport::where('id', $request->lost_id)->update(['status' => 'LOST']);
-
-            // ✅ not_matched：Found 释放回 Unclaimed（只在目前是 Matched 时才退回）
             $found = FoundItem::find($request->found_id);
             if ($found && $found->status === 'Matched') {
                 $found->update(['status' => 'Unclaimed']);
             }
         }
 
-        $returnUrl = $request->input('return_url');
-        if (!empty($returnUrl)) {
-            return redirect()->to($returnUrl)->with('success', 'Verification record saved.');
+        if (!empty($request->return_url)) {
+            return redirect()->to($request->return_url)->with('success', 'Verification record saved.');
         }
 
         return redirect()->route('staff.lost-items.index')->with('success', 'Verification record saved.');
@@ -236,7 +202,6 @@ class LostItemController extends Controller
     public function unmatch($lostId)
     {
         $match = MatchRecord::where('lostId', $lostId)->first();
-        
         if ($match) {
             AdminActionLog::create([
                 'admin_name'  => auth()->user()->name ?? 'Staff',
@@ -244,22 +209,17 @@ class LostItemController extends Controller
                 'target_name' => "Match Record #{$match->id}",
                 'details'     => "Action: Unlinked Lost Item #{$match->lostId} from Found Item #{$match->foundId}. Status reset."
             ]);
-
             FoundItem::where('id', $match->foundId)->update(['status' => 'Unclaimed']);
             LostItemReport::where('id', $lostId)->update(['status' => 'LOST']);
             $match->delete();
         }
-
-        return redirect()->back()->with('success', 'Match has been cancelled. Items are back to original status.');
+        return redirect()->back()->with('success', 'Match has been cancelled.');
     }
 
     public function getTimelineHtml($id)
     {
-        // 🌟 已統一為 $lostItem
         $lostItem = LostItemReport::findOrFail($id);
-        $match = MatchRecord::where('lostId', $lostItem->id)
-                    ->where('status', 'Verified')
-                    ->first();
+        $match = MatchRecord::where('lostId', $lostItem->id)->where('status', 'Verified')->first();
 
         if (!$match || !$match->foundItem) {
             return '<div class="p-6 text-center text-gray-500">No verified timeline data available.</div>';
