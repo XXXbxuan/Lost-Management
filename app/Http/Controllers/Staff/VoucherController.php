@@ -18,16 +18,14 @@ class VoucherController extends Controller
     // 2. Store New Voucher
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'required|string',
-            'points' => 'required|integer|min:1',
-            'description' => 'required|string',
-        ]);
+        if ($request->input('points') < 0) {
+            return redirect()->back()
+                             ->withInput()
+                             ->with('error', 'Error: Voucher cost cannot be a negative number!');
+        }
 
-        Voucher::create($request->all());
-
-        return redirect()->route('staff.vouchers.index')->with('success', 'Voucher created successfully!');
+        return redirect()->route('staff.vouchers.index')
+                         ->with('success', 'New reward voucher created successfully!');
     }
 
     // 3. Delete Voucher

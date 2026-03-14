@@ -78,8 +78,8 @@ class FoundItemController extends Controller
             $finder = User::where('email', $request->finder_email)->first();
 
             if ($finder) {
-                $finder->increment('points', 100); // Give 50 points
-                $successMessage = 'Item saved successfully and 100 points were awarded to ' . $finder->name . '!';
+                $finder->increment('points', 100);
+                $successMessage = 'Item saved successfully and 100 points were awarded to the user who found item!';
             }
         }
 

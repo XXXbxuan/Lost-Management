@@ -53,15 +53,16 @@ class StaffController extends Controller
         $hotspotLabels = array_keys($hotspots);
         $hotspotData = array_values($hotspots);
 
+        if (auth()->user()->role === 'Staff') {
+            return view('staff.dashboard', compact(
+                'totalFound', 'totalLost', 'totalStaff', 'successRate',
+                'categoryLabels', 'categoryData', 'hotspotLabels', 'hotspotData'    
+            ));
+        }
+
         return view('admin.dashboard', compact(
-            'totalFound', 
-            'totalLost', 
-            'totalStaff',
-            'successRate',
-            'categoryLabels', 
-            'categoryData',
-            'hotspotLabels', 
-            'hotspotData'    
+            'totalFound', 'totalLost', 'totalStaff', 'successRate',
+            'categoryLabels', 'categoryData', 'hotspotLabels', 'hotspotData'    
         ));
     }
 

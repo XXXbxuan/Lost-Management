@@ -54,8 +54,6 @@ Route::middleware('auth')->group(function () {
         
         Route::get('/export/found-items', [FoundItemController::class, 'exportFoundItems'])->name('export.found_items');
         Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
-        
-        Route::get('/export/found-items', [StaffController::class, 'exportFoundItems'])->name('export.found_items');
 
         Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store']);
         Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
