@@ -85,6 +85,8 @@
                                     <label class="block font-bold text-sm text-gray-700">Where was it lost? (Location) *</label>
                                     <select name="lost_location" id="lostLocationSelect" onchange="toggleFlightInput()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500" required>
                                         <option value="">-- Select Location --</option>
+                                        <option value="Terminal 1">Terminal 1</option>
+                                        <option value="Terminal 2">Terminal 2</option>
                                         <option value="Check-in Counter">Check-in Counter</option>
                                         <option value="Security Checkpoint">Security Checkpoint</option>
                                         <option value="Departure Hall">Departure Hall</option>

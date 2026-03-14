@@ -1,4 +1,4 @@
-<x-app-layout>
+<<x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Matching and Verification – Candidate Matches
@@ -15,7 +15,6 @@
                     <div class="bg-white p-4 shadow-sm rounded-lg border border-gray-200">
                         <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 text-xs uppercase tracking-wider">Filter Criteria</h3>
                         
-                        {{-- 🌟 這裡改成 $lostItem->id --}}
                         <form method="GET" action="{{ route('staff.lost-items.show', $lostItem->id) }}">
                             <input type="hidden" name="search" value="1">
                             
@@ -23,7 +22,6 @@
                                 <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Category</label>
                                 <select name="category" class="w-full text-sm rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-1.5">
                                     <option value="">-- All --</option>
-                                    {{-- 🌟 以下全部改成 $lostItem->category --}}
                                     <option value="Electronics" {{ request('category', $lostItem->category) == 'Electronics' ? 'selected' : '' }}>Electronics</option>
                                     <option value="Bag" {{ request('category', $lostItem->category) == 'Bag' ? 'selected' : '' }}>Bag</option>
                                     <option value="Wallet" {{ request('category', $lostItem->category) == 'Wallet' ? 'selected' : '' }}>Wallet</option>
@@ -37,18 +35,29 @@
                                 <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Found Location</label>
                                 <select name="location" class="w-full text-sm rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-1.5">
                                     <option value="">-- All --</option>
-                                    <option value="Airplane Cabin" {{ request('location') == 'Airplane Cabin' ? 'selected' : '' }}>Airplane Cabin</option>
+                                    <option value="Terminal 1" {{ request('location') == 'Terminal 1' ? 'selected' : '' }}>Terminal 1</option>
+                                    <option value="Terminal 2" {{ request('location') == 'Terminal 2' ? 'selected' : '' }}>Terminal 2</option>
                                     <option value="Check-in Counter" {{ request('location') == 'Check-in Counter' ? 'selected' : '' }}>Check-in Counter</option>
+                                    <option value="Security Checkpoint" {{ request('location') == 'Security Checkpoint' ? 'selected' : '' }}>Security Checkpoint</option>
                                     <option value="Departure Hall" {{ request('location') == 'Departure Hall' ? 'selected' : '' }}>Departure Hall</option>
                                     <option value="Arrival Hall" {{ request('location') == 'Arrival Hall' ? 'selected' : '' }}>Arrival Hall</option>
+                                    <option value="Boarding Gate" {{ request('location') == 'Boarding Gate' ? 'selected' : '' }}>Boarding Gate (General)</option>
+                                    <option value="Baggage Claim" {{ request('location') == 'Baggage Claim' ? 'selected' : '' }}>Baggage Claim</option>
+                                    <option value="Restroom" {{ request('location') == 'Restroom' ? 'selected' : '' }}>Restroom / Toilet</option>
+                                    <option value="Restaurant/Shop" {{ request('location') == 'Restaurant/Shop' ? 'selected' : '' }}>Restaurant / Duty Free Shop</option>
+                                    <option value="Airplane Cabin" {{ request('location') == 'Airplane Cabin' ? 'selected' : '' }}>Airplane Cabin (On Board)</option>
+                                    <option value="Lounge" {{ request('location') == 'Lounge' ? 'selected' : '' }}>VIP Lounge</option>
+                                    <option value="Parking Lot" {{ request('location') == 'Parking Lot' ? 'selected' : '' }}>Parking Lot</option>
+                                    <option value="Others" {{ request('location') == 'Others' ? 'selected' : '' }}>Others</option>
                                 </select>
                             </div>
 
                             <div class="mb-3">
                                 <label class="text-[10px] font-extrabold text-gray-400 uppercase block mb-1">Date Range</label>
                                 <div class="flex gap-2">
-                                    {{-- 🌟 這裡改成 $lostItem->lost_time --}}
-                                    <input type="date" name="date_from" value="{{ request('date_from', $lostItem->lost_time->format('Y-m-d')) }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
+                                    <input type="date" name="date_from"
+                                           value="{{ request('date_from', optional($lostItem->lost_time)->format('Y-m-d')) }}"
+                                           class="w-1/2 text-xs rounded border-gray-300 py-1.5">
                                     <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-1/2 text-xs rounded border-gray-300 py-1.5">
                                 </div>
                             </div>

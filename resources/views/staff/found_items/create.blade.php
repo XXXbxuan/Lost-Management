@@ -61,15 +61,32 @@
                                 <div>
                                     <label class="block font-bold text-sm text-gray-700">Found Location (Area) <span class="text-red-500">*</span></label>
                                     <select id="locationSelect" name="found_location" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" onchange="toggleFlightInput()">
-                                        <option value="">Select Area</option>
-                                        <option value="Airplane Cabin">✈️ Airplane Cabin (In-Flight)</option>
+                                    <label class="block font-bold text-sm text-gray-700">
+                                        Found Location (Area) <span class="text-red-500">*</span>
+                                    </label>
+
+                                    <select id="locationSelect" name="found_location"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            onchange="toggleFlightInput()" required>
+                                        <option value="">-- Select Location --</option>
+                                        <option value="Airplane Cabin">✈️ Airplane Cabin (On Board)</option>
+
                                         <option value="Terminal 1">Terminal 1</option>
                                         <option value="Terminal 2">Terminal 2</option>
+
+                                        <option value="Check-in Counter">Check-in Counter</option>
+                                        <option value="Security Checkpoint">Security Checkpoint</option>
                                         <option value="Departure Hall">Departure Hall</option>
                                         <option value="Arrival Hall">Arrival Hall</option>
-                                        <option value="Security Check">Security Check</option>
-                                        <option value="Restroom">Restroom</option>
-                                        <option value="Food Court">Food Court</option>
+                                        <option value="Check-in Counter">Check-in Counter</option>
+                                        <option value="Security Checkpoint">Security Checkpoint</option>
+                                        <option value="Boarding Gate">Boarding Gate (General)</option>
+                                        <option value="Baggage Claim">Baggage Claim</option>
+                                        <option value="Restroom">Restroom / Toilet</option>
+                                        <option value="Restaurant/Shop">Restaurant / Duty Free Shop</option>
+                                        <option value="Airplane Cabin">✈️ Airplane Cabin (On Board)</option>
+                                        <option value="Lounge">VIP Lounge</option>
+                                        <option value="Parking Lot">Parking Lot</option>
                                         <option value="Others">Others</option>
                                     </select>
                                 </div>
@@ -77,11 +94,13 @@
                                 <div id="flightInputDiv" class="hidden bg-blue-50 p-2 rounded border border-blue-200">
                                     <label class="block font-bold text-sm text-blue-800">Flight Number <span class="text-red-500">*</span></label>
                                     <input type="text" name="flight_number" class="mt-1 block w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="e.g. MH370">
+                                    <input type="text" name="flight_number" id="flightInput" class="mt-1 block w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="e.g. MH370">
                                 </div>
 
                                 <div>
                                     <label class="block font-bold text-sm text-gray-700">Found Time <span class="text-red-500">*</span></label>
                                     <input type="datetime-local" name="found_time" value="{{ old('found_time', now()->format('Y-m-d\TH:i')) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <input type="datetime-local" name="found_time" value="{{ old('found_time', now()->format('Y-m-d\TH:i')) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -121,6 +140,9 @@
                                  }
                              }"
                              x-init="checkSlots()"> <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🔐 Step 3: Storage Assignment (Internal)</h3>
+                             x-init="checkSlots()">
+
+                            <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🔐 Step 3: Storage Assignment (Internal)</h3>
                             
                             <div class="bg-gray-50 p-6 rounded-md border border-gray-200 mb-6">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -148,6 +170,8 @@
                                         <select name="slot" x-model="slot" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                                             @for ($i = 1; $i <= 10; $i++)
                                                 @php $slotVal = sprintf('%02d', $i); @endphp <option value="{{ $slotVal }}"
+                                                @php $slotVal = sprintf('%02d', $i); @endphp
+                                                <option value="{{ $slotVal }}"
                                                         x-bind:disabled="occupiedList.includes('{{ $slotVal }}')"
                                                         x-text="occupiedList.includes('{{ $slotVal }}') ? 'Slot {{ $slotVal }} (Occupied)' : 'Slot {{ $slotVal }}'">
                                                 </option>
@@ -215,13 +239,30 @@
             }
         }
 
+        // 2. 顏色多選邏輯 (組件 x-item-details-form 需要用到這個)
+        function toggleMultiColor() {
+            const mainColor = document.getElementById('mainColorSelect').value;
+            const optionsDiv = document.getElementById('multiColorOptions');
+            if (mainColor === 'Multi-color') { 
+                optionsDiv.classList.remove('hidden'); 
+            } else { 
+                optionsDiv.classList.add('hidden'); 
+            }
+        }
+
+        // 3. 航班號顯示邏輯 (與 Lost Report 邏輯統一)
         function toggleFlightInput() {
             const location = document.getElementById('locationSelect').value;
             const flightDiv = document.getElementById('flightInputDiv');
+            const flightInput = document.getElementById('flightInput');
+
             if (location === 'Airplane Cabin') {
                 flightDiv.classList.remove('hidden');
+                flightInput.setAttribute('required', 'required');
             } else {
                 flightDiv.classList.add('hidden');
+                flightInput.removeAttribute('required');
+                flightInput.value = ''; 
             }
         }
     </script>
