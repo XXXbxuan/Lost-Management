@@ -98,7 +98,6 @@
                                         <option value="Airplane Cabin">Airplane Cabin (On Board)</option>
                                         <option value="Lounge">VIP Lounge</option>
                                         <option value="Parking Lot">Parking Lot</option>
-                                        <option value="Others">Others</option>
                                     </select>
                                 </div>
 
