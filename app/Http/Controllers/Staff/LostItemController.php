@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\FoundItem;
 use App\Models\MatchRecord;
 use App\Models\AdminActionLog;
+use Illuminate\Support\Facades\DB;
 
 class LostItemController extends Controller
 {
@@ -30,7 +31,7 @@ class LostItemController extends Controller
         return view('staff.lost_reports.create');
     }
 
-    public function store(Request $request)
+   public function store(Request $request)
     {
         $validated = $request->validate([
             'passenger_name'   => 'required|string|max:255',
@@ -38,21 +39,24 @@ class LostItemController extends Controller
             'passenger_phone'  => 'required|string|max:20',
             'item_name'        => 'required|string|max:255',
             'category'         => 'required|string',
-            'brand'            => 'nullable|string',
-            'serial_number'    => 'nullable|string',
-            'color'            => 'required|string',
+            'brand'            => 'nullable|string|max:255',
+            'serial_number'    => 'nullable|string|max:255',
+            'color'            => 'required|string|max:255',
             'sub_colors'       => 'nullable|array',
+            'sub_colors.*'     => 'string|max:50',
             'image'            => 'nullable|image|max:2048',
-            'lost_location'    => 'required|string',
-            'flight_number'    => 'nullable|string',
+            'lost_location'    => 'required|string|max:255',
+            'flight_number'    => 'nullable|string|max:50',
             'lost_time'        => 'required|date',
             'description'      => 'nullable|string',
         ]);
 
-        if ($request->has('sub_colors') && is_array($request->input('sub_colors'))) {
-            $subColorsString = implode(', ', $request->input('sub_colors'));
-            if ($validated['color'] === 'Multi-color') {
-                $validated['color'] = 'Multi-color (' . $subColorsString . ')';
+        // ✅ Multi-color 存成 "Multi-color (Red, Blue, ...)"
+        if ($request->filled('sub_colors') && is_array($request->input('sub_colors'))) {
+            $subColors = array_filter(array_map('trim', $request->input('sub_colors')));
+
+            if (($validated['color'] ?? '') === 'Multi-color' && count($subColors) > 0) {
+                $validated['color'] = 'Multi-color (' . implode(', ', $subColors) . ')';
             }
         }
 
@@ -73,7 +77,8 @@ class LostItemController extends Controller
             'details'     => "Passenger: {$lostItem->passenger_name}, Item: {$lostItem->item_name} ({$lostItem->category})."
         ]);
 
-        return redirect()->route('dashboard')->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
+        return redirect()->route('dashboard')
+            ->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
     }
 
     public function show($id, Request $request)
@@ -94,12 +99,13 @@ class LostItemController extends Controller
             if ($request->filled('location')) $query->where('found_location', $request->input('location'));
             if ($request->filled('date_from')) $query->whereDate('found_time', '>=', $request->input('date_from'));
             if ($request->filled('date_to')) $query->whereDate('found_time', '<=', $request->input('date_to'));
+
             if ($request->filled('keyword')) {
                 $search = $request->input('keyword');
                 $query->where(function ($q) use ($search) {
                     $q->where('item_name', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%")
-                        ->orWhere('color', 'LIKE', "%{$search}%");
+                      ->orWhere('description', 'LIKE', "%{$search}%")
+                      ->orWhere('color', 'LIKE', "%{$search}%");
                 });
             }
         } else {
@@ -109,67 +115,159 @@ class LostItemController extends Controller
             }
         }
 
-        $candidateMatches = $query->latest()->get();
+        // ✅ FULLTEXT query (你已經在 found_items 建好 FULLTEXT index: item_name, brand, description)
+        $textQuery = trim(implode(' ', array_filter([
+            $lostItem->item_name,
+            $lostItem->brand,
+            $lostItem->description,
+        ])));
+
+        $candidateMatches = $query
+            ->select('found_items.*')
+            ->selectRaw(
+                "MATCH(item_name, brand, description) AGAINST (? IN NATURAL LANGUAGE MODE) as text_relevance",
+                [$textQuery]
+            )
+            ->latest()
+            ->get();
 
         foreach ($candidateMatches as $item) {
             $score = 0;
 
-            if ($item->category == $lostItem->category) {
-                $score += 40;
+            // ----------------------------
+            // 1) Category (30)
+            // ----------------------------
+            if (($item->category ?? '') === ($lostItem->category ?? '')) {
+                $score += 30;
             }
 
-            // ✅ Color scoring (30) - Found multi-color is the standard
-            // ✅ Color scoring (30) - Found multi-color is the standard (average split)
-            // ✅ Color scoring (30) - Found multi-color is the standard (average split)
-            $foundColorRaw = strtolower(trim((string) ($item->color ?? '')));
-            $lostColorRaw  = strtolower(trim((string) ($lostItem->color ?? '')));
+            // ----------------------------
+            // 2) Color (25) - Found multi-color is the standard (avg split)
+            // ----------------------------
+            $foundColorRaw = strtolower((string) ($item->color ?? ''));
+            $lostColorRaw  = strtolower((string) ($lostItem->color ?? ''));
 
-            $parseColors = function ($raw) {
-                if ($raw === '') return [];
-
-                // Multi-color (red, blue, yellow)
-                if (str_starts_with($raw, 'multi-color')) {
-                    if (preg_match('/\((.*?)\)/', $raw, $m)) {
-                        $parts = array_map('trim', explode(',', $m[1]));
-                        $parts = array_filter($parts, fn($c) => $c !== '');
-                        return array_values(array_unique($parts));
-                    }
-                    return [];
+            // Parse Found colors
+            $foundColors = [];
+            if (str_contains($foundColorRaw, 'multi-color')) {
+                if (preg_match('/\((.*?)\)/', $foundColorRaw, $m)) {
+                    $foundColors = array_filter(array_map('trim', explode(',', $m[1])));
                 }
+            } else {
+                if ($foundColorRaw !== '') $foundColors = [trim($foundColorRaw)];
+            }
 
-                // Single color
-                return [trim($raw)];
-            };
+            // Parse Lost colors
+            $lostColors = [];
+            if (str_contains($lostColorRaw, 'multi-color')) {
+                if (preg_match('/\((.*?)\)/', $lostColorRaw, $m2)) {
+                    $lostColors = array_filter(array_map('trim', explode(',', $m2[1])));
+                }
+            } else {
+                if ($lostColorRaw !== '') $lostColors = [trim($lostColorRaw)];
+            }
 
-            $foundColors = $parseColors($foundColorRaw);
-            $lostColors  = $parseColors($lostColorRaw);
+            $foundColors = array_values(array_unique($foundColors));
+            $lostColors  = array_values(array_unique($lostColors));
 
-            $foundCount = count($foundColors);
             $matchedCount = 0;
-
-            if ($foundCount > 0 && count($lostColors) > 0) {
-                // exact match only
-                foreach ($foundColors as $fc) {
-                    if (in_array($fc, $lostColors, true)) {
+            foreach ($foundColors as $fc) {
+                foreach ($lostColors as $lc) {
+                    if ($fc !== '' && $lc !== '' && str_contains($fc, $lc)) {
                         $matchedCount++;
+                        break;
                     }
                 }
+            }
 
-                if ($matchedCount > 0) {
-                    $perColor = 30 / $foundCount;           // 3 colors => 10 each, 2 colors => 15 each
-                    $colorScore = $matchedCount * $perColor;
-                    $score += (int) round(min(30, $colorScore));
+            if (count($foundColors) > 0 && $matchedCount > 0) {
+                $perColor = 25 / count($foundColors);
+                $score += min(25, $matchedCount * $perColor);
+            }
+
+            // ----------------------------
+            // 3) Location (15)
+            // ----------------------------
+            if (($item->found_location ?? '') === ($lostItem->lost_location ?? '')) {
+                $score += 15;
+            }
+
+            // ----------------------------
+            // 4) Brand (10)
+            // ----------------------------
+            $foundBrand = strtoupper((string) ($item->brand ?? ''));
+            $lostBrand  = strtoupper((string) ($lostItem->brand ?? ''));
+
+            $foundBrandNorm = str_replace([' ', '-'], '', $foundBrand);
+            $lostBrandNorm  = str_replace([' ', '-'], '', $lostBrand);
+
+            if ($foundBrandNorm !== '' && $lostBrandNorm !== '') {
+                if ($foundBrandNorm === $lostBrandNorm) {
+                    $score += 10;
+                } else if (str_contains($foundBrandNorm, $lostBrandNorm) || str_contains($lostBrandNorm, $foundBrandNorm)) {
+                    $score += 5;
                 }
             }
 
-            if ($item->found_location == $lostItem->lost_location) {
-                $score += 20;
+            // ----------------------------
+            // 5) Serial Number (20) - exact 20, partial 10
+            // ----------------------------
+            $foundSerial = strtoupper((string) ($item->serial_number ?? ''));
+            $lostSerial  = strtoupper((string) ($lostItem->serial_number ?? ''));
+
+            $foundSerialNorm = str_replace([' ', '-'], '', $foundSerial);
+            $lostSerialNorm  = str_replace([' ', '-'], '', $lostSerial);
+
+            if ($foundSerialNorm !== '' && $lostSerialNorm !== '') {
+                if ($foundSerialNorm === $lostSerialNorm) {
+                    $score += 20;
+                } else if (str_contains($foundSerialNorm, $lostSerialNorm) || str_contains($lostSerialNorm, $foundSerialNorm)) {
+                    $score += 10;
+                }
             }
 
-            if (str_contains(strtolower($item->item_name), strtolower($lostItem->item_name))) {
-                $score += 10;
+            // ----------------------------
+            // 6) Time difference (10)
+            // ----------------------------
+            if ($item->found_time && $lostItem->lost_time) {
+                $daysDiff = abs((int) $item->found_time->copy()->startOfDay()
+                    ->diffInDays($lostItem->lost_time->copy()->startOfDay()));
+
+                if ($daysDiff == 0) $score += 10;
+                else if ($daysDiff <= 3) $score += 7;
+                else if ($daysDiff <= 7) $score += 5;
+                else $score += 3;
             }
 
+            // ----------------------------
+            // 7) Flight number (10) - only if BOTH locations are Airplane Cabin
+            // ----------------------------
+            if (($item->found_location ?? '') === 'Airplane Cabin' && ($lostItem->lost_location ?? '') === 'Airplane Cabin') {
+                $foundFlight = strtoupper((string) ($item->flight_number ?? ''));
+                $lostFlight  = strtoupper((string) ($lostItem->flight_number ?? ''));
+
+                $foundFlightNorm = str_replace([' ', '-'], '', $foundFlight);
+                $lostFlightNorm  = str_replace([' ', '-'], '', $lostFlight);
+
+                if ($foundFlightNorm !== '' && $lostFlightNorm !== '') {
+                    if ($foundFlightNorm === $lostFlightNorm) {
+                        $score += 10;
+                    } else if (str_contains($foundFlightNorm, $lostFlightNorm) || str_contains($lostFlightNorm, $foundFlightNorm)) {
+                        $score += 5;
+                    }
+                }
+            }
+
+            // ----------------------------
+            // 8) Text match (15) - FULLTEXT result (只加分，不控制排序)
+            // ----------------------------
+            $textRel = (float) ($item->text_relevance ?? 0);
+            if ($textRel >= 2.0) $score += 15;
+            else if ($textRel >= 1.0) $score += 12;
+            else if ($textRel >= 0.5) $score += 8;
+            else if ($textRel >= 0.2) $score += 4;
+
+            // ✅ 分數可以超過100沒關係，但顯示最多100%
             $item->similarity_score = min($score, 100);
         }
 
