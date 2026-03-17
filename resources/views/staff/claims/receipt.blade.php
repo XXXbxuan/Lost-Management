@@ -77,11 +77,61 @@
                                 {{-- 🌟 修正：如果 ID 消失，檢查 $match->foundItem->storage_slot 或 storage_id --}}
                                 <p class="text-xl font-black text-indigo-600 uppercase">{{ $match->foundItem->storage_location ?? 'N/A' }}</p>
                             </div>
-                            <div class="col-span-2 grid grid-cols-3 gap-4 border-t border-slate-50 pt-6">
-                                <div><label>Category/Brand</label><p class="text-sm font-black text-slate-800 uppercase">{{ $match->foundItem->category }} / {{ $match->foundItem->brand ?? 'N/A' }}</p></div>
-                                <div><label>Color/Serial</label><p class="text-sm font-black text-slate-800 uppercase">{{ $match->foundItem->color }} / {{ $match->foundItem->serial_number ?? 'NONE' }}</p></div>
-                                <div><label>Location Found</label><p class="text-sm font-black text-slate-800 uppercase">{{ $match->foundItem->found_location }}</p></div>
+                            <div class="col-span-2 border-t border-slate-50 pt-6">
+
+    {{-- ROW 1: Category / Color / Found Time --}}
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label>Category</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ $match->foundItem->category ?? '-' }}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label>Color</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ $match->foundItem->color ?? '-' }}
+                                        </p>
+                                    </div>
+
+                                    <div >
+                                        <label>Found Time</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ optional($match->foundItem->found_time)->format('Y-m-d') ?? '-' }}
+                                        </p>
+                                        <p class="text-[11px] font-bold text-slate-500 uppercase mt-1">
+                                            {{ optional($match->foundItem->found_time)->format('H:i') ?? '' }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {{-- ROW 2: Brand / Serial / Location Found --}}
+                                <div class="grid grid-cols-3 gap-4 mt-6">
+                                    <div>
+                                        <label>Brand</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ $match->foundItem->brand ?: '-' }}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label>Serial Number</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ $match->foundItem->serial_number ?: '-' }}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label>Location Found</label>
+                                        <p class="text-sm font-black text-slate-800 uppercase">
+                                            {{ $match->foundItem->found_location ?? '-' }}
+                                        </p>
+                                    </div>
+                                </div>
+
                             </div>
+                            <br>
                         </div>
                         <div class="staff-stamp">
                             <p class="text-[9px] font-bold text-slate-400 uppercase">Action: Registry Registry</p>
@@ -107,13 +157,19 @@
                         {{-- 🌟 增加 mb-32 確保底部的內容與 Staff Box 保持絕對安全距離 --}}
                         <div class="grid grid-cols-2 gap-x-12 gap-y-10 mb-19.5">
                             {{-- 左側：失主身份 --}}
-                            <div>
-                                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Claimant Identity</label>
-                                <p class="text-2xl font-black text-slate-900 uppercase leading-none mt-2">
-                                    {{ $match->lostItem->passenger_name }}
+                            <div class="mt-2 space-y-1">
+                                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                                    Passenger Details (Contact)
+                                </label>
+                                <p class="text-2xl font-black text-slate-900 uppercase leading-none">
+                                    {{ $match->lostItem->passenger_name ?? '-' }}
                                 </p>
-                                <p class="text-[11px] font-bold text-slate-500 mt-2 italic">{{ $match->lostItem->passenger_email }}</p>
-                                <p class="text-[11px] font-bold text-slate-500 mt-1 italic">{{ $match->lostItem->passenger_phone }}</p>
+                                <p class="text-[11px] font-bold text-slate-500 italic leading-tight">
+                                    {{ $match->lostItem->passenger_email ?? '-' }}
+                                </p>
+                                <p class="text-[11px] font-bold text-slate-500 italic leading-tight">
+                                    {{ $match->lostItem->passenger_phone ?? '-' }}
+                                </p>
                             </div>
 
                             {{-- 右側：地點資訊 (已移除 Similarity Score) --}}
@@ -128,17 +184,68 @@
                             </div>
 
                             {{-- 下方：物品詳情與原始描述 --}}
-                            <div class="col-span-2 border-t border-slate-50 pt-8">
+                            {{-- ✅ Lost Item Details (aligned 3 columns) --}}
+                            <div class="col-span-2 border-t border-slate-50 pt-5">
                                 <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Lost Item Details</label>
-                                <p class="text-xs font-black text-indigo-600 uppercase mb-6 mt-2">
-                                    {{ $match->lostItem->item_name }} ({{ $match->lostItem->category }}, Brand: {{ $match->lostItem->brand ?? 'N/A' }}, Serial: {{ $match->lostItem->serial_number ?? 'N/A' }})
+
+                                <p class="text-3xl font-black text-slate-900 uppercase leading-tight mt-3">
+                                    {{ $match->lostItem->item_name ?? '-' }}
                                 </p>
 
-                                {{-- 🌟 修正：在描述框上方增加標籤，並確保不會蓋住下方 --}}
-                                <div class="relative">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Original Statement / Description</label>
+                                <div class="mt-4 grid grid-cols-3 gap-x-12 gap-y-6">
+                                    {{-- Column 1: Category + Brand --}}
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label>Category</label>
+                                            <p class="text-sm font-black text-slate-800 uppercase">
+                                                {{ $match->lostItem->category ?? '-' }}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label>Brand</label>
+                                            <p class="text-sm font-black text-slate-800 uppercase">
+                                                {{ $match->lostItem->brand ?: '-' }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {{-- Column 2: Color + Serial --}}
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label>Color</label>
+                                            <p class="text-sm font-black text-slate-800 uppercase">
+                                                {{ $match->lostItem->color ?? '-' }}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label>Serial Number</label>
+                                            <p class="text-sm font-black text-slate-800 uppercase">
+                                                {{ $match->lostItem->serial_number ?: '-' }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {{-- Column 3: Lost Time (aligned) --}}
+                                    <div class="space-y-3 ">
+                                        <div>
+                                            <label>Lost Time</label>
+                                            <p class="text-sm font-black text-slate-800 uppercase">
+                                                {{ optional($match->lostItem->lost_time)->format('Y-m-d') ?? '-' }}
+                                            </p>
+                                            <p class="text-[11px] font-bold text-slate-500 uppercase mt-1">
+                                                {{ optional($match->lostItem->lost_time)->format('H:i') ?? '' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Description --}}
+                                <div class="mt-8">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                                        Original Statement / Description
+                                    </label>
                                     <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 italic text-sm text-slate-600 shadow-inner leading-relaxed">
-                                        "{{ $match->lostItem->description }}"
+                                        "{{ $match->lostItem->description ?: '-' }}"
                                     </div>
                                 </div>
                             </div>
