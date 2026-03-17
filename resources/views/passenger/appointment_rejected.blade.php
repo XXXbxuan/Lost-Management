@@ -38,10 +38,6 @@
                     You have declined the proposed time. Please suggest alternative times below. (Office hours: 09:00 AM - 05:00 PM)
                 </p>
 
-                <p class="text-slate-600 text-sm mb-6 text-center">
-                    You have declined the proposed time. Please suggest alternative times below. (Office hours: 09:00 AM - 05:00 PM)
-                </p>
-
                 @if ($errors->any())
                     <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded">
                         <div class="flex">
@@ -57,8 +53,6 @@
                         </div>
                     </div>
                 @endif
-                <form action="{{ route('pickup.propose', $match->verification_token) }}" method="POST" class="space-y-4"></form>
-
                 
                 <form action="{{ route('pickup.propose', ['token' => $match->verification_token]) }}" method="POST" class="space-y-4">                    
                     @csrf
