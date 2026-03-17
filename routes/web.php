@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\LogController;
@@ -33,7 +35,7 @@ Route::get('auth/google/callback', [AuthenticatedSessionController::class, 'hand
 Route::prefix('pickup')->group(function () {
     Route::get('/confirm/{token}', [PickupController::class, 'showConfirmationPage'])->name('pickup.confirm');
     Route::post('/confirm/{token}', [PickupController::class, 'processConfirmation'])->name('pickup.process');
-    
+
     // 🌟 核心：智能分流入口 (QR Code 掃描後指向此處)
     Route::get('/verify/{token}', [ClaimController::class, 'smartVerify'])->name('pickup.verify');
 
@@ -45,7 +47,9 @@ Route::prefix('pickup')->group(function () {
 // 🔐 認證後路徑 (需登入)
 // --------------------------------------------------
 Route::middleware('auth')->group(function () {
-    
+
+ 
+
     // 個人資料
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -63,7 +67,7 @@ Route::middleware('auth')->group(function () {
 
     // 員工專區 (Staff Area)
     Route::prefix('staff')->name('staff.')->group(function () {
-        
+
         // 🌟 朋友新增的功能：數據導出與 Dashboard
         Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
         Route::get('/export/found-items', [FoundItemController::class, 'exportFoundItems'])->name('export.found_items');
@@ -76,10 +80,10 @@ Route::middleware('auth')->group(function () {
         Route::get('match-verify/{lost_id}/{found_id}', [LostItemController::class, 'verify'])->name('match.verify');
         Route::post('match-verify/save', [LostItemController::class, 'storeMatch'])->name('match.store');
         Route::post('match/unmatch/{lostId}', [LostItemController::class, 'unmatch'])->name('match.unmatch');
-        
+
         // 🌟 領取管理 (Claims & Handover) - 核心合併
         Route::prefix('claims')->name('claims.')->group(function () {
-            Route::get('/', [ClaimController::class, 'index'])->name('index'); 
+            Route::get('/', [ClaimController::class, 'index'])->name('index');
             Route::get('/create', [ClaimController::class, 'createClaim'])->name('create');
             Route::post('/store', [ClaimController::class, 'store'])->name('store');
             Route::get('/receipt/{id}', [ClaimController::class, 'showReceipt'])->name('receipt');
@@ -119,4 +123,5 @@ Route::middleware('guest')->group(function () {
     Route::post('forgot-password', [OTPPasswordResetController::class, 'sendResetCode'])->name('password.email');
     Route::get('reset-password-verify', [OTPPasswordResetController::class, 'showResetForm'])->name('password.verify');
     Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
+
 });
