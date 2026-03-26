@@ -28,6 +28,8 @@ class FoundItem extends Model
         'status', 
         'staff_id',           // 鏈接至登記人 ID
         'registered_by_name', // 備份登記人姓名 (冗餘存儲，增加讀取效率)
+        'removed_at',
+        'removal_reason',
     ];
 
     /**
@@ -70,5 +72,14 @@ class FoundItem extends Model
             ->orWhere('target_name', 'like', "%{$this->item_name}%")
             ->orderBy('created_at', 'asc')
             ->get();
+    }
+    public function inventoryMovements()
+    {
+        return $this->hasMany(InventoryMovement::class);
+    }
+
+    public function storageSlot()
+    {
+        return $this->belongsTo(StorageSlot::class, 'storage_location', 'full_code');
     }
 }

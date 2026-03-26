@@ -38,5 +38,6 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Admin account created successfully!');
         $this->command->info('Username: admin01');
         $this->command->info('Password: password123');
+        $this->call(StorageSlotSeeder::class);
     }
 }

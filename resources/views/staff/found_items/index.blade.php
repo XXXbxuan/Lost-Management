@@ -21,11 +21,18 @@
                     {{-- 顶部标题和按钮 --}}
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-lg font-bold text-gray-700">Found Items List</h3>
-                        
-                        <a href="{{ route('staff.found-items.create') }}" 
-                           class="bg-black text-white px-4 py-2 rounded-md font-bold hover:bg-gray-800 transition shadow-md no-underline flex items-center gap-2 text-sm">
-                            <span>+</span> Register New Item
-                        </a>
+
+                        <div class="flex items-center gap-3">
+                            <a href="{{ route('staff.inventory.index') }}"
+                            class="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                Inventory Map
+                            </a>
+
+                            <a href="{{ route('staff.found-items.create') }}" 
+                            class="bg-black text-white px-4 py-2 rounded-md font-bold hover:bg-gray-800 transition shadow-md no-underline flex items-center gap-2 text-sm">
+                                <span>+</span> Register New Item
+                            </a>
+                        </div>
                     </div>
 
                     {{-- 🔥🔥🔥 1. 状态筛选 Tabs (修复了注释报错问题) 🔥🔥🔥 --}}

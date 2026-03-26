@@ -13,7 +13,9 @@ use App\Http\Controllers\PickupController;
 use App\Http\Controllers\Passenger\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\OTPPasswordResetController;
+use App\Http\Controllers\Staff\InventoryController;
 
+// --------------------------------------------------
 // 1) 基礎重定向
 Route::get('/', function () {
     return redirect()->route('login');
@@ -65,6 +67,10 @@ Route::middleware('auth')->group(function () {
     // 員工專區 (Staff Area)
     Route::prefix('staff')->name('staff.')->group(function () {
 
+        Route::patch('/found-items/inventory/item/{id}/remove', [InventoryController::class, 'remove'])->name('inventory.remove');
+        Route::patch('/found-items/inventory/item/{id}/move', [InventoryController::class, 'move'])->name('inventory.move');
+        Route::get('/found-items/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/found-items/inventory/slot/{fullCode}', [InventoryController::class, 'showSlot'])->name('inventory.show_slot');
         // Dashboard / Export
         Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
         Route::get('/export/found-items', [FoundItemController::class, 'exportFoundItems'])->name('export.found_items');
