@@ -38,6 +38,6 @@ class User extends Authenticatable
 
     public function staff()
     {
-        return $this->hasOne(Staff::class, 'user_id');
+        return $this->hasOne(\App\Models\Staff::class, 'user_id', 'id');
     }
 }

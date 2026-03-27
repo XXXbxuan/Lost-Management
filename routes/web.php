@@ -67,7 +67,7 @@ Route::middleware('auth')->group(function () {
     // 員工專區 (Staff Area)
     Route::prefix('staff')->name('staff.')->group(function () {
 
-
+        Route::get('/check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('check-slots');
         Route::patch('/found-items/inventory/slot/{fullCode}/service', [InventoryController::class, 'markService'])->name('inventory.mark_service');
         Route::patch('/found-items/inventory/slot/{fullCode}/restore', [InventoryController::class, 'restoreSlot'])->name('inventory.restore_slot');
         Route::patch('/found-items/inventory/item/{id}/remove', [InventoryController::class, 'remove'])->name('inventory.remove');
@@ -79,7 +79,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/export/found-items', [FoundItemController::class, 'exportFoundItems'])->name('export.found_items');
 
         // 資源管理
-        Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store']);
+        Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
         Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
 
         // 匹配與驗證

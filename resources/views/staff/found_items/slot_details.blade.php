@@ -172,10 +172,7 @@
                                     <div class="mt-1">{{ $item->brand ?? 'N/A' }}</div>
                                 </div>
 
-                                <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Model</div>
-                                    <div class="mt-1">{{ $item->model ?? 'N/A' }}</div>
-                                </div>
+                        
 
                                 <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
                                     <div class="font-semibold text-slate-900">Serial Number</div>
