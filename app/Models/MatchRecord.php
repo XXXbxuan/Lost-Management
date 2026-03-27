@@ -34,12 +34,12 @@ class MatchRecord extends Model
 
     public function lostItem()
     {
-        return $this->belongsTo(LostItemReport::class, 'lostId');
+        return $this->belongsTo(LostItemReport::class, 'lostId', 'id');
     }
 
     public function foundItem()
     {
-        return $this->belongsTo(FoundItem::class, 'foundId');
+        return $this->belongsTo(FoundItem::class, 'foundId', 'id');
     }
 
     public function verifier()

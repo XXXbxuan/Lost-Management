@@ -9,6 +9,7 @@ use App\Models\FoundItem;
 use App\Models\MatchRecord;
 use App\Models\AdminActionLog;
 use Illuminate\Support\Facades\DB;
+use App\Models\Staff;
 
 class LostItemController extends Controller
 {
@@ -31,7 +32,7 @@ class LostItemController extends Controller
         return view('staff.lost_reports.create');
     }
 
-   public function store(Request $request)
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'passenger_name'   => 'required|string|max:255',
@@ -51,7 +52,6 @@ class LostItemController extends Controller
             'description'      => 'nullable|string',
         ]);
 
-        // ✅ Multi-color 存成 "Multi-color (Red, Blue, ...)"
         if ($request->filled('sub_colors') && is_array($request->input('sub_colors'))) {
             $subColors = array_filter(array_map('trim', $request->input('sub_colors')));
 
@@ -65,8 +65,18 @@ class LostItemController extends Controller
         }
 
         if (auth()->check()) {
-            $validated['staff_id'] = auth()->id();
+        $staff = Staff::where('user_id', auth()->id())->first();
+
+        if (!$staff) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'staff_id' => 'No staff record found for the current logged in user.'
+                ]);
         }
+
+        $validated['staff_id'] = $staff->staff_id;
+    }
 
         $lostItem = LostItemReport::create($validated);
 
@@ -79,6 +89,93 @@ class LostItemController extends Controller
 
         return redirect()->route('dashboard')
             ->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
+    }
+
+    public function edit(LostItemReport $lostItem)
+    {
+        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+            return redirect()
+                ->route('staff.lost-items.index')
+                ->with('error', 'Only unsolved lost reports can be edited.');
+        }
+
+        return view('staff.lost_reports.edit', compact('lostItem'));
+    }
+
+    public function update(Request $request, LostItemReport $lostItem)
+    {
+        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+            return redirect()
+                ->route('staff.lost-items.index')
+                ->with('error', 'Only unsolved lost reports can be updated.');
+        }
+
+        $validated = $request->validate([
+            'passenger_name'   => 'required|string|max:255',
+            'passenger_email'  => 'required|email|max:255',
+            'passenger_phone'  => 'required|string|max:20',
+            'item_name'        => 'required|string|max:255',
+            'category'         => 'required|string',
+            'brand'            => 'nullable|string|max:255',
+            'serial_number'    => 'nullable|string|max:255',
+            'color'            => 'required|string|max:255',
+            'sub_colors'       => 'nullable|array',
+            'sub_colors.*'     => 'string|max:50',
+            'image'            => 'nullable|image|max:2048',
+            'lost_location'    => 'required|string|max:255',
+            'flight_number'    => 'nullable|string|max:50',
+            'lost_time'        => 'required|date',
+            'description'      => 'nullable|string',
+        ]);
+
+        if ($request->filled('sub_colors') && is_array($request->input('sub_colors'))) {
+            $subColors = array_filter(array_map('trim', $request->input('sub_colors')));
+
+            if (($validated['color'] ?? '') === 'Multi-color' && count($subColors) > 0) {
+                $validated['color'] = 'Multi-color (' . implode(', ', $subColors) . ')';
+            }
+        }
+
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
+        }
+
+        unset($validated['sub_colors']);
+
+        $lostItem->update($validated);
+
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'action_type' => 'UPDATE_LOST_REPORT',
+            'target_name' => "Report #{$lostItem->id}",
+            'details'     => "Updated lost report for item: {$lostItem->item_name}."
+        ]);
+
+        return redirect()
+            ->route('staff.lost-items.index')
+            ->with('success', 'Lost report updated successfully.');
+    }
+
+    public function destroy(LostItemReport $lostItem)
+    {
+        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+            return redirect()
+                ->route('staff.lost-items.index')
+                ->with('error', 'Only unsolved lost reports can be deleted.');
+        }
+
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'action_type' => 'DELETE_LOST_REPORT',
+            'target_name' => "Report #{$lostItem->id}",
+            'details'     => "Deleted lost report for item: {$lostItem->item_name}."
+        ]);
+
+        $lostItem->delete();
+
+        return redirect()
+            ->route('staff.lost-items.index')
+            ->with('success', 'Lost report deleted successfully.');
     }
 
     public function show($id, Request $request)
@@ -115,7 +212,6 @@ class LostItemController extends Controller
             }
         }
 
-        // ✅ FULLTEXT query (你已經在 found_items 建好 FULLTEXT index: item_name, brand, description)
         $textQuery = trim(implode(' ', array_filter([
             $lostItem->item_name,
             $lostItem->brand,
@@ -134,20 +230,13 @@ class LostItemController extends Controller
         foreach ($candidateMatches as $item) {
             $score = 0;
 
-            // ----------------------------
-            // 1) Category (30)
-            // ----------------------------
             if (($item->category ?? '') === ($lostItem->category ?? '')) {
                 $score += 30;
             }
 
-            // ----------------------------
-            // 2) Color (25) - Found multi-color is the standard (avg split)
-            // ----------------------------
             $foundColorRaw = strtolower((string) ($item->color ?? ''));
             $lostColorRaw  = strtolower((string) ($lostItem->color ?? ''));
 
-            // Parse Found colors
             $foundColors = [];
             if (str_contains($foundColorRaw, 'multi-color')) {
                 if (preg_match('/\((.*?)\)/', $foundColorRaw, $m)) {
@@ -157,7 +246,6 @@ class LostItemController extends Controller
                 if ($foundColorRaw !== '') $foundColors = [trim($foundColorRaw)];
             }
 
-            // Parse Lost colors
             $lostColors = [];
             if (str_contains($lostColorRaw, 'multi-color')) {
                 if (preg_match('/\((.*?)\)/', $lostColorRaw, $m2)) {
@@ -185,16 +273,10 @@ class LostItemController extends Controller
                 $score += min(25, $matchedCount * $perColor);
             }
 
-            // ----------------------------
-            // 3) Location (15)
-            // ----------------------------
             if (($item->found_location ?? '') === ($lostItem->lost_location ?? '')) {
                 $score += 15;
             }
 
-            // ----------------------------
-            // 4) Brand (10)
-            // ----------------------------
             $foundBrand = strtoupper((string) ($item->brand ?? ''));
             $lostBrand  = strtoupper((string) ($lostItem->brand ?? ''));
 
@@ -209,9 +291,6 @@ class LostItemController extends Controller
                 }
             }
 
-            // ----------------------------
-            // 5) Serial Number (20) - exact 20, partial 10
-            // ----------------------------
             $foundSerial = strtoupper((string) ($item->serial_number ?? ''));
             $lostSerial  = strtoupper((string) ($lostItem->serial_number ?? ''));
 
@@ -226,9 +305,6 @@ class LostItemController extends Controller
                 }
             }
 
-            // ----------------------------
-            // 6) Time difference (10)
-            // ----------------------------
             if ($item->found_time && $lostItem->lost_time) {
                 $daysDiff = abs((int) $item->found_time->copy()->startOfDay()
                     ->diffInDays($lostItem->lost_time->copy()->startOfDay()));
@@ -239,9 +315,6 @@ class LostItemController extends Controller
                 else $score += 3;
             }
 
-            // ----------------------------
-            // 7) Flight number (10) - only if BOTH locations are Airplane Cabin
-            // ----------------------------
             if (($item->found_location ?? '') === 'Airplane Cabin' && ($lostItem->lost_location ?? '') === 'Airplane Cabin') {
                 $foundFlight = strtoupper((string) ($item->flight_number ?? ''));
                 $lostFlight  = strtoupper((string) ($lostItem->flight_number ?? ''));
@@ -258,16 +331,12 @@ class LostItemController extends Controller
                 }
             }
 
-            // ----------------------------
-            // 8) Text match (15) - FULLTEXT result (只加分，不控制排序)
-            // ----------------------------
             $textRel = (float) ($item->text_relevance ?? 0);
             if ($textRel >= 2.0) $score += 15;
             else if ($textRel >= 1.0) $score += 12;
             else if ($textRel >= 0.5) $score += 8;
             else if ($textRel >= 0.2) $score += 4;
 
-            // ✅ 分數可以超過100沒關係，但顯示最多100%
             $item->similarity_score = min($score, 100);
         }
 

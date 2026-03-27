@@ -80,7 +80,9 @@ Route::middleware('auth')->group(function () {
 
         // 資源管理
         Route::resource('found-items', FoundItemController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
-        Route::resource('lost-items', LostItemController::class)->only(['index', 'create', 'store', 'show']);
+        Route::resource('lost-items', LostItemController::class)->only([
+            'index', 'create', 'store', 'show', 'edit', 'update', 'destroy'
+        ]);
 
         // 匹配與驗證
         Route::get('match-verify/{lost_id}/{found_id}', [LostItemController::class, 'verify'])->name('match.verify');
