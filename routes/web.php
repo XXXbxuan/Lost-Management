@@ -67,6 +67,9 @@ Route::middleware('auth')->group(function () {
     // 員工專區 (Staff Area)
     Route::prefix('staff')->name('staff.')->group(function () {
 
+
+        Route::patch('/found-items/inventory/slot/{fullCode}/service', [InventoryController::class, 'markService'])->name('inventory.mark_service');
+        Route::patch('/found-items/inventory/slot/{fullCode}/restore', [InventoryController::class, 'restoreSlot'])->name('inventory.restore_slot');
         Route::patch('/found-items/inventory/item/{id}/remove', [InventoryController::class, 'remove'])->name('inventory.remove');
         Route::patch('/found-items/inventory/item/{id}/move', [InventoryController::class, 'move'])->name('inventory.move');
         Route::get('/found-items/inventory', [InventoryController::class, 'index'])->name('inventory.index');

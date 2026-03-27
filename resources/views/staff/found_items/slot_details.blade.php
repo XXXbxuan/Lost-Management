@@ -20,19 +20,48 @@
 
                 <div class="grid items-start gap-6 lg:grid-cols-2">
                     <div class="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
-                        <div class="mb-6 border-b border-slate-200 pb-5">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <h2 class="text-2xl font-bold text-slate-900">Slot Information</h2>
-                                    <p class="mt-1 text-sm text-slate-500">Detailed overview of this storage slot.</p>
-                                </div>
+                        <div class="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-900">Slot Information</h2>
+        <p class="mt-1 text-sm text-slate-500">Detailed overview of this storage slot.</p>
+    </div>
 
-                                <span class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em]
-                                    {{ $displaySlotStatus === 'Occupied' ? 'bg-rose-100 text-rose-700' : ($displaySlotStatus === 'Service' ? 'bg-amber-100 text-amber-700' : 'bg-cyan-100 text-cyan-700') }}">
-                                    {{ $displaySlotStatus }}
-                                </span>
-                            </div>
-                        </div>
+    <div class="flex flex-wrap items-center gap-3">
+        @if ($displaySlotStatus === 'Service')
+            <button type="button"
+                    @click="showRestoreForm = true"
+                    class="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2.4-2.4 3-3Z"/>
+                </svg>
+                Restore Slot
+            </button>
+        @elseif (!$item)
+            <button type="button"
+                    @click="showServiceForm = true"
+                    class="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2.4-2.4 3-3Z"/>
+                </svg>
+                Mark as Service
+            </button>
+        @else
+            <button type="button"
+                    disabled
+                    class="inline-flex items-center gap-2 rounded-2xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2.4-2.4 3-3Z"/>
+                </svg>
+                Move/remove item first
+            </button>
+        @endif
+
+        <span class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em]
+            {{ $displaySlotStatus === 'Occupied' ? 'bg-rose-100 text-rose-700' : ($displaySlotStatus === 'Service' ? 'bg-amber-100 text-amber-700' : 'bg-cyan-100 text-cyan-700') }}">
+            {{ $displaySlotStatus }}
+        </span>
+    </div>
+</div>
 
                         <div class="grid gap-4 sm:grid-cols-2 text-sm text-slate-700">
                             <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
@@ -124,8 +153,8 @@
                                 </div>
 
                                 <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Found Date</div>
-                                    <div class="mt-1">{{ $item->found_date ?? ($item->date ?? 'N/A') }}</div>
+                                    <div class="font-semibold text-slate-900">Found At</div>
+                                    <div class="mt-1">{{ $item->found_time ?? ($item->date ?? 'N/A') }}</div>
                                 </div>
 
                                 <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
@@ -153,25 +182,6 @@
                                     <div class="mt-1">{{ $item->serial_number ?? 'N/A' }}</div>
                                 </div>
 
-                                <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Condition</div>
-                                    <div class="mt-1">{{ $item->condition ?? 'N/A' }}</div>
-                                </div>
-
-                                <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Reward Points</div>
-                                    <div class="mt-1">{{ $item->points ?? 'N/A' }}</div>
-                                </div>
-
-                                <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Stored Duration</div>
-                                    <div class="mt-1">{{ $storedDays !== null ? round($storedDays) . ' days' : 'N/A' }}</div>
-                                </div>
-
-                                <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
-                                    <div class="font-semibold text-slate-900">Auto Remove Eligible</div>
-                                    <div class="mt-1">{{ $autoRemoveEligible ? 'Yes' : 'No' }}</div>
-                                </div>
 
                                 <div class="rounded-2xl bg-slate-50 px-6 py-4 leading-7">
                                     <div class="font-semibold text-slate-900">Created At</div>
@@ -227,7 +237,133 @@
             </div>
         </div>
 
+        <div x-show="showRestoreForm"
+     x-transition.opacity
+     x-cloak
+     @keydown.escape.window="showRestoreForm = false"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+     style="display: none;">
+    <div @click.away="showRestoreForm = false"
+         class="w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div>
+                <h3 class="text-xl font-bold text-slate-900">Restore Slot</h3>
+                <p class="mt-1 text-sm text-slate-500">Restore this service slot back to available.</p>
+            </div>
+
+            <button type="button"
+                    @click="showRestoreForm = false"
+                    class="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form method="POST" action="{{ route('staff.inventory.restore_slot', $slot->full_code) }}" class="mt-6">
+            @csrf
+            @method('PATCH')
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div class="space-y-2 text-sm text-slate-700">
+                    <div><span class="font-semibold">Full Code:</span> {{ $slot->full_code }}</div>
+                    <div><span class="font-semibold">Current Status:</span> {{ $displaySlotStatus }}</div>
+                    <div><span class="font-semibold">Remark:</span> {{ $slot->remark ?? 'N/A' }}</div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5">
+                <button type="button"
+                        @click="showRestoreForm = false"
+                        class="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2.4-2.4 3-3Z"/>
+                    </svg>
+                    Restore Slot
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+        <div x-show="showServiceForm"
+     x-transition.opacity
+     x-cloak
+     @keydown.escape.window="showServiceForm = false"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+     style="display: none;">
+    <div @click.away="showServiceForm = false"
+         class="w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div>
+                <h3 class="text-xl font-bold text-slate-900">Mark Slot as Service</h3>
+                <p class="mt-1 text-sm text-slate-500">Temporarily block this slot for maintenance or service.</p>
+            </div>
+
+            <button type="button"
+                    @click="showServiceForm = false"
+                    class="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form method="POST" action="{{ route('staff.inventory.mark_service', $slot->full_code) }}" class="mt-6">
+            @csrf
+            @method('PATCH')
+
+            <div class="grid gap-6 lg:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h4 class="text-sm font-bold text-slate-900">Slot Information</h4>
+
+                    <div class="mt-4 space-y-2 text-sm text-slate-700">
+                        <div><span class="font-semibold">Zone:</span> {{ $slot->zone_code }}</div>
+                        <div><span class="font-semibold">Shelf:</span> {{ $slot->shelf_code }}</div>
+                        <div><span class="font-semibold">Slot:</span> {{ $slot->slot_code }}</div>
+                        <div><span class="font-semibold">Full Code:</span> {{ $slot->full_code }}</div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h4 class="text-sm font-bold text-slate-900">Service Remark</h4>
+
+                    <div class="mt-4">
+                        <label class="mb-2 block text-sm font-semibold text-slate-700">Remark</label>
+                        <textarea name="service_remark"
+                                  rows="4"
+                                  class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm focus:border-slate-500 focus:ring-slate-500"
+                                  placeholder="Example: Shelf damaged / Cleaning in progress / Temporarily blocked"
+                                  required>{{ old('service_remark') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5">
+                <button type="button"
+                        @click="showServiceForm = false"
+                        class="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2.4-2.4 3-3Z"/>
+                    </svg>
+                    Mark as Service
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
         @if ($item)
+        
             <div x-show="showMoveForm"
                  x-transition.opacity
                  x-cloak
@@ -412,42 +548,44 @@
         @endif
 
         <script>
-            function moveItemForm(slots, currentLocation) {
-                return {
-                    showMoveForm: false,
-                    showRemoveForm: false,
-                    selectedZone: 'GEN',
-                    selectedLocation: '',
-                    slots: slots,
-                    currentLocation: currentLocation,
+    function slotDetailState(slots, currentLocation) {
+        return {
+            showMoveForm: false,
+            showRemoveForm: false,
+            showServiceForm: false,
+            showRestoreForm: false,
+            selectedZone: 'GEN',
+            selectedLocation: '',
+            slots: slots,
+            currentLocation: currentLocation,
 
-                    filteredSlots() {
-                        return this.slots
-                            .filter(slot => slot.zone_code === this.selectedZone)
-                            .map(slot => {
-                                let label = slot.full_code;
-                                let disabled = false;
+            filteredSlots() {
+                return this.slots
+                    .filter(slot => slot.zone_code === this.selectedZone)
+                    .map(slot => {
+                        let label = slot.full_code;
+                        let disabled = false;
 
-                                if (slot.full_code === this.currentLocation) {
-                                    label += ' (Current Slot)';
-                                    disabled = true;
-                                } else if (slot.slot_status === 'Service') {
-                                    label += ' (Service)';
-                                    disabled = true;
-                                } else if (slot.is_occupied) {
-                                    label += ' (Occupied)';
-                                    disabled = true;
-                                }
+                        if (slot.full_code === this.currentLocation) {
+                            label += ' (Current Slot)';
+                            disabled = true;
+                        } else if (slot.slot_status === 'Service') {
+                            label += ' (Service)';
+                            disabled = true;
+                        } else if (slot.is_occupied) {
+                            label += ' (Occupied)';
+                            disabled = true;
+                        }
 
-                                return {
-                                    ...slot,
-                                    label,
-                                    disabled
-                                };
-                            });
-                    }
-                }
+                        return {
+                            ...slot,
+                            label,
+                            disabled
+                        };
+                    });
             }
-        </script>
+        }
+    }
+</script>
     </div>
 </x-app-layout>

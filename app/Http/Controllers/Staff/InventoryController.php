@@ -174,9 +174,22 @@ class InventoryController extends Controller
         $storedDays = null;
         $autoRemoveEligible = false;
 
-        if ($item->found_date) {
-            $storedDays = \Carbon\Carbon::parse($item->found_date)->diffInDays(now());
-            $autoRemoveEligible = $item->status === 'Unclaimed' && $storedDays >= 90;
+        if ($item) {
+            $baseDate = null;
+
+            if (!empty($item->found_date)) {
+                $baseDate = $item->found_date;
+            } elseif (!empty($item->created_at)) {
+                $baseDate = $item->created_at;
+            }
+
+            if ($baseDate) {
+                $storedDays = \Carbon\Carbon::parse($baseDate)->diffInDays(now());
+            }
+
+            $autoRemoveEligible = $item->status === 'Unclaimed'
+                && $storedDays !== null
+                && $storedDays >= 90;
         }
 
         $isAdmin = auth()->check() && auth()->user()->role === 'Admin';
@@ -206,8 +219,51 @@ class InventoryController extends Controller
         });
 
         return redirect()
-            ->route('staff.inventory.show_slot', $oldLocation)
+            ->route('staff.inventory.index', ['zone' => explode('-', $oldLocation)[0] ?? 'GEN'])
             ->with('success', 'Item removed from inventory successfully.');
+    }
+    public function markService(Request $request, $fullCode)
+{
+    $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+
+    $request->validate([
+        'service_remark' => ['required', 'string', 'max:255'],
+    ]);
+
+    $hasActiveItem = FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
+        ->where('storage_location', $fullCode)
+        ->exists();
+
+    if ($hasActiveItem) {
+        return back()->with('error', 'This slot is currently occupied. Move or remove the item first.');
+    }
+
+    if ($slot->slot_status === 'Service') {
+        return back()->with('error', 'This slot is already marked as service.');
+    }
+
+    $slot->update([
+        'slot_status' => 'Service',
+        'remark' => $request->service_remark,
+    ]);
+
+    return back()->with('success', 'Slot marked as service successfully.');
+}
+
+    public function restoreSlot($fullCode)
+    {
+        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+
+        if ($slot->slot_status !== 'Service') {
+            return back()->with('error', 'Only service slots can be restored.');
+        }
+
+        $slot->update([
+            'slot_status' => 'Available',
+            'remark' => null,
+        ]);
+
+        return back()->with('success', 'Slot restored to available successfully.');
     }
 
 }
