@@ -112,47 +112,108 @@
                                             </span>
                                         </td>
 
-                                        <td class="py-3 px-6 text-center" x-data="{ openModal: false }">
+                                        <td class="py-3 px-6 text-center" x-data="{ openMenu: false, openItem: false }">
                                             @php
-    $existingMatch = \App\Models\MatchRecord::where('foundId', $item->id)->first();
+                                                $existingMatch = \App\Models\MatchRecord::where('foundId', $item->id)->first();
 
-    $latestRemove = \App\Models\InventoryMovement::where('found_item_id', $item->id)
-        ->where('action_type', 'remove')
-        ->latest('created_at')
-        ->first();
+                                                $latestRemove = \App\Models\InventoryMovement::where('found_item_id', $item->id)
+                                                    ->where('action_type', 'remove')
+                                                    ->latest('created_at')
+                                                    ->first();
 
-    $latestRemoveWithLocation = \App\Models\InventoryMovement::where('found_item_id', $item->id)
-        ->where('action_type', 'remove')
-        ->whereNotNull('from_location')
-        ->where('from_location', '!=', '')
-        ->latest('created_at')
-        ->first();
+                                                $latestRemoveWithLocation = \App\Models\InventoryMovement::where('found_item_id', $item->id)
+                                                    ->where('action_type', 'remove')
+                                                    ->whereNotNull('from_location')
+                                                    ->where('from_location', '!=', '')
+                                                    ->latest('created_at')
+                                                    ->first();
 
-    $removedFrom = $latestRemoveWithLocation?->from_location
-        ?? $latestRemove?->to_location
-        ?? $item->storage_location
-        ?? null;
-@endphp
+                                                $removedFrom = $latestRemoveWithLocation?->from_location
+                                                    ?? $latestRemove?->to_location
+                                                    ?? $item->storage_location
+                                                    ?? null;
+                                            @endphp
 
-                                            <button type="button"
-                                                    @click="openModal = true"
-                                                    class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 shadow-sm transition"
-                                                    title="View details">
-                                                👁
-                                            </button>
+                                            <div class="relative inline-block text-left">
+                                                <button type="button"
+                                                        @click="openMenu = !openMenu"
+                                                        class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 shadow-sm transition"
+                                                        title="Open actions">
+                                                    🔍
+                                                </button>
 
-                                            <div x-show="openModal"
+                                                <div x-show="openMenu"
+                                                     x-cloak
+                                                     @click.away="openMenu = false"
+                                                     class="absolute right-0 mt-2 w-52 origin-top-right rounded-xl bg-white border border-slate-200 shadow-lg z-50 p-2"
+                                                     style="display: none;">
+
+                                                    <div class="flex flex-col gap-2">
+                                                        @if($item->status === 'Unclaimed')
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openItem = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Item
+                                                            </button>
+
+                                                            <a href="{{ route('staff.found-items.edit', $item->id) }}"
+                                                               class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 no-underline block">
+                                                                ✏️ Edit
+                                                            </a>
+
+                                                            <form method="POST"
+                                                                  action="{{ route('staff.found-items.destroy', $item->id) }}"
+                                                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit"
+                                                                        class="w-full text-left whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100">
+                                                                    🗑 Delete
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if($item->status === 'Matched' && $existingMatch)
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openItem = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Item
+                                                            </button>
+
+                                                            <form action="{{ route('staff.match.unmatch', $existingMatch->lostId) }}"
+                                                                  method="POST"
+                                                                  onsubmit="return confirm('Undo this match?');">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                        class="w-full text-left whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">
+                                                                    ↩ Undo Match
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if(in_array($item->status, ['Claimed', 'Removed']))
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openItem = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Item
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div x-show="openItem"
                                                  x-cloak
                                                  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
                                                  style="display: none;">
 
-                                                <div @click.away="openModal = false"
+                                                <div @click.away="openItem = false"
                                                      class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
 
                                                     <div class="flex items-center justify-between border-b px-6 py-4">
                                                         <h3 class="text-lg font-bold text-slate-800">Found Item Details</h3>
                                                         <button type="button"
-                                                                @click="openModal = false"
+                                                                @click="openItem = false"
                                                                 class="text-slate-400 hover:text-slate-600 text-xl font-bold bg-transparent border-0">
                                                             ×
                                                         </button>
@@ -213,8 +274,6 @@
                                                                     <div>{{ $item->found_time }}</div>
                                                                 </div>
 
-                                                                
-
                                                                 <div>
                                                                     <div class="text-xs font-bold uppercase text-slate-400">Flight Number</div>
                                                                     <div>{{ $item->flight_number ?: '-' }}</div>
@@ -226,20 +285,20 @@
                                                                 </div>
 
                                                                 @if($item->status === 'Removed')
-    <div>
-        <div class="text-xs font-bold uppercase text-red-400">Removed From</div>
-        <div class="text-red-600 font-medium">
-            {{ $removedFrom ?: '-' }}
-        </div>
-    </div>
+                                                                    <div>
+                                                                        <div class="text-xs font-bold uppercase text-red-400">Removed From</div>
+                                                                        <div class="text-red-600 font-medium">
+                                                                            {{ $removedFrom ?: '-' }}
+                                                                        </div>
+                                                                    </div>
 
-    <div>
-        <div class="text-xs font-bold uppercase text-red-400">Removal Reason</div>
-        <div class="text-red-600 font-medium">
-            {{ $latestRemove?->remarks ?? $item->removal_reason ?? 'No removal reason recorded.' }}
-        </div>
-    </div>
-@endif
+                                                                    <div>
+                                                                        <div class="text-xs font-bold uppercase text-red-400">Removal Reason</div>
+                                                                        <div class="text-red-600 font-medium">
+                                                                            {{ $latestRemove?->remarks ?? $item->removal_reason ?? 'No removal reason recorded.' }}
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
                                                             </div>
 
                                                             <div class="md:col-span-2">
@@ -251,38 +310,10 @@
                                                         </div>
 
                                                         <div class="mt-6 flex justify-end gap-3">
-                                                            @if($item->status === 'Unclaimed')
-                                                                <a href="{{ route('staff.found-items.edit', $item->id) }}"
-                                                                   class="inline-flex items-center rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 no-underline">
-                                                                    Edit
-                                                                </a>
-
-                                                                <form method="POST"
-                                                                      action="{{ route('staff.found-items.destroy', $item->id) }}"
-                                                                      onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                                    @csrf
-                                                                    @method('DELETE')
-                                                                    <button type="submit"
-                                                                            class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                                                                        Delete
-                                                                    </button>
-                                                                </form>
-                                                            @elseif($item->status === 'Matched' && $existingMatch)
-                                                                <form action="{{ route('staff.match.unmatch', $existingMatch->lostId) }}"
-                                                                      method="POST"
-                                                                      onsubmit="return confirm('Undo this match?');">
-                                                                    @csrf
-                                                                    <button type="submit"
-                                                                            class="inline-flex items-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">
-                                                                        Undo Match
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-
                                                             <button type="button"
-                                                                    @click="openModal = false"
+                                                                    @click="openItem = false"
                                                                     class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                                                Cancel
+                                                                Close
                                                             </button>
                                                         </div>
                                                     </div>

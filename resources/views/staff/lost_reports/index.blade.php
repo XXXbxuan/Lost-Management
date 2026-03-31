@@ -93,7 +93,9 @@
                                         <td class="py-4 px-6 text-left">
                                             <div class="text-gray-700">{{ $lostItem->lost_location }}</div>
                                             @if($lostItem->flight_number)
-                                                <div class="text-[11px] text-blue-500 font-semibold bg-blue-50 px-1.5 py-0.5 rounded inline-block mt-1">Flight: {{ $lostItem->flight_number }}</div>
+                                                <div class="text-[11px] text-blue-500 font-semibold bg-blue-50 px-1.5 py-0.5 rounded inline-block mt-1">
+                                                    Flight: {{ $lostItem->flight_number }}
+                                                </div>
                                             @endif
                                         </td>
 
@@ -103,66 +105,118 @@
                                                     {{ $lostItem->status == 'Reschedule Requested' ? 'Reschedule' : 'Matched' }}
                                                 </span>
                                             @elseif($lostItem->status == 'Claimed')
-                                                <span class="bg-gray-100 text-gray-500 py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-wider border border-gray-200">Claimed</span>
+                                                <span class="bg-gray-100 text-gray-500 py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-wider border border-gray-200">
+                                                    Claimed
+                                                </span>
                                             @else
-                                                <span class="bg-red-100 text-red-600 py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-200">LOST</span>
+                                                <span class="bg-red-100 text-red-600 py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-wider border border-red-200">
+                                                    LOST
+                                                </span>
                                             @endif
                                         </td>
 
-                                        <td class="py-4 px-6 text-center" x-data="{ openModal: false }">
+                                        <td class="py-4 px-6 text-center" x-data="{ openMenu: false, openReport: false }">
                                             @php
                                                 $existingMatch = \App\Models\MatchRecord::where('lostId', $lostItem->id)->first();
                                             @endphp
 
-                                            <div class="flex flex-col items-center gap-2">
-                                                {{-- 永远都有 View Report --}}
+                                            <div class="relative inline-block text-left">
                                                 <button type="button"
-                                                        @click="openModal = true"
-                                                        class="bg-white border border-green-500 text-green-600 px-3 py-1 rounded text-[11px] font-bold hover:bg-green-50 transition uppercase cursor-pointer">
-                                                    📜 View Report
+                                                        @click="openMenu = !openMenu"
+                                                        class="inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 shadow-sm transition"
+                                                        title="Open actions">
+                                                    ✈️
                                                 </button>
 
-                                                @if($lostItem->status == 'Matched' || $lostItem->status == 'Reschedule Requested')
-                                                    @if($existingMatch)
-                                                        <a href="{{ route('staff.claims.process', $existingMatch->id) }}" 
-                                                           class="bg-emerald-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-emerald-700 shadow-sm transition no-underline uppercase">
-                                                            🛠️ Manage Claim
-                                                        </a>
-                                                    @else
-                                                        <a href="{{ route('staff.claims.create', ['lost_id' => $lostItem->id]) }}" 
-                                                           class="bg-emerald-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-emerald-700 shadow-sm transition no-underline uppercase">
-                                                            🛠️ Manage Claim
-                                                        </a>
-                                                    @endif
+                                                <div x-show="openMenu"
+                                                     x-cloak
+                                                     @click.away="openMenu = false"
+                                                     class="absolute right-0 mt-2 w-56 origin-top-right rounded-2xl bg-white border border-slate-200 shadow-xl z-50 p-2"
+                                                     style="display: none;">
 
-                                                    <form action="{{ route('staff.match.unmatch', $lostItem->id) }}" method="POST" onsubmit="return confirm('Undo this match?')">
-                                                        @csrf
-                                                        <button type="submit" class="text-[10px] text-gray-400 hover:text-red-500 underline font-bold bg-transparent border-none cursor-pointer">
-                                                            Undo Match
-                                                        </button>
-                                                    </form>
+                                                    <div class="flex flex-col gap-2">
+                                                        @if($lostItem->status === 'LOST' || $lostItem->status === 'Lost')
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openReport = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Report
+                                                            </button>
 
-                                                @elseif($lostItem->status == 'LOST' || $lostItem->status == 'Lost')
-                                                    <a href="{{ route('staff.lost-items.show', $lostItem->id) }}" 
-                                                       class="bg-blue-600 text-white px-4 py-1.5 rounded text-[11px] font-black hover:bg-blue-700 shadow-sm transition no-underline uppercase inline-flex items-center gap-1">
-                                                        ⚡ Match
-                                                    </a>
-                                                @endif
+                                                            <a href="{{ route('staff.lost-items.edit', $lostItem->id) }}"
+                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 no-underline block">
+                                                                ✏️ Edit
+                                                            </a>
+
+                                                            <form method="POST"
+                                                                  action="{{ route('staff.lost-items.destroy', $lostItem->id) }}"
+                                                                  onsubmit="return confirm('Are you sure you want to delete this lost report?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit"
+                                                                        class="w-full text-left whitespace-nowrap rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100">
+                                                                    🗑 Delete
+                                                                </button>
+                                                            </form>
+
+                                                            <a href="{{ route('staff.lost-items.show', $lostItem->id) }}"
+                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 no-underline block">
+                                                                ⚡ Match
+                                                            </a>
+                                                        @endif
+
+                                                        @if(in_array($lostItem->status, ['Matched', 'Reschedule Requested']))
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openReport = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Report
+                                                            </button>
+
+                                                            @if($existingMatch)
+                                                                <a href="{{ route('staff.claims.process', $existingMatch->id) }}"
+                                                                   class="w-full text-left whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 no-underline block">
+                                                                    🛠 Manage Claim
+                                                                </a>
+                                                            @else
+                                                                <a href="{{ route('staff.claims.create', ['lost_id' => $lostItem->id]) }}"
+                                                                   class="w-full text-left whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 no-underline block">
+                                                                    🛠 Manage Claim
+                                                                </a>
+                                                            @endif
+
+                                                            <form action="{{ route('staff.match.unmatch', $lostItem->id) }}"
+                                                                  method="POST"
+                                                                  onsubmit="return confirm('Undo this match?');">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                        class="w-full text-left whitespace-nowrap rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-100">
+                                                                    ↩ Undo Match
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if($lostItem->status === 'Claimed')
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openReport = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Report
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            {{-- View Report Modal --}}
-                                            <div x-show="openModal"
+                                            <div x-show="openReport"
                                                  x-cloak
                                                  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
                                                  style="display: none;">
 
-                                                <div @click.away="openModal = false"
+                                                <div @click.away="openReport = false"
                                                      class="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
 
                                                     <div class="flex items-center justify-between border-b px-6 py-4">
                                                         <h3 class="text-lg font-bold text-slate-800">Lost Report Details</h3>
                                                         <button type="button"
-                                                                @click="openModal = false"
+                                                                @click="openReport = false"
                                                                 class="text-slate-400 hover:text-slate-600 text-xl font-bold bg-transparent border-0">
                                                             ×
                                                         </button>
@@ -170,14 +224,14 @@
 
                                                     <div class="px-6 py-5 max-h-[75vh] overflow-y-auto">
                                                         @if($existingMatch && $existingMatch->foundItem)
-    <div class="mb-6 border border-slate-200 rounded-[2rem] overflow-hidden bg-white">
-        @include('staff.claims.partials.timeline', [
-            'match' => $existingMatch,
-            'foundItem' => $existingMatch->foundItem,
-            'mode' => 'claim'
-        ])
-    </div>
-@else
+                                                            <div class="mb-6 border border-slate-200 rounded-[2rem] overflow-hidden bg-white">
+                                                                @include('staff.claims.partials.timeline', [
+                                                                    'match' => $existingMatch,
+                                                                    'foundItem' => $existingMatch->foundItem,
+                                                                    'mode' => 'claim'
+                                                                ])
+                                                            </div>
+                                                        @else
                                                             <div class="w-full py-10 bg-white rounded-[3rem] border border-slate-200 mb-6">
                                                                 <div class="flex items-start justify-center relative px-8">
                                                                     <div class="flex flex-col items-center w-full relative">
@@ -268,7 +322,7 @@
 
                                                                 <div>
                                                                     <div class="text-xs font-bold uppercase text-slate-400">Passenger Phone</div>
-                                                                    <div>{{ $lostItem->passenger_phone ?: '-' }}</div>
+                                                                    <div>{{ $lostItem->passenger_phone }}</div>
                                                                 </div>
 
                                                                 <div>
@@ -286,39 +340,10 @@
                                                         </div>
 
                                                         <div class="mt-6 flex justify-end gap-3">
-                                                            @if($lostItem->status === 'LOST' || $lostItem->status === 'Lost')
-                                                                <a href="{{ route('staff.lost-items.edit', $lostItem->id) }}"
-                                                                   class="inline-flex items-center rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 no-underline">
-                                                                    Edit
-                                                                </a>
-
-                                                                <form method="POST"
-                                                                      action="{{ route('staff.lost-items.destroy', $lostItem->id) }}"
-                                                                      onsubmit="return confirm('Are you sure you want to delete this lost report?');">
-                                                                    @csrf
-                                                                    @method('DELETE')
-                                                                    <button type="submit"
-                                                                            class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                                                                        Delete
-                                                                    </button>
-                                                                </form>
-
-                                                            @elseif(in_array($lostItem->status, ['Matched', 'Reschedule Requested']) && $existingMatch)
-                                                                <form action="{{ route('staff.match.unmatch', $lostItem->id) }}"
-                                                                      method="POST"
-                                                                      onsubmit="return confirm('Undo this match?');">
-                                                                    @csrf
-                                                                    <button type="submit"
-                                                                            class="inline-flex items-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">
-                                                                        Undo Match
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-
                                                             <button type="button"
-                                                                    @click="openModal = false"
+                                                                    @click="openReport = false"
                                                                     class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                                                Cancel
+                                                                Close
                                                             </button>
                                                         </div>
                                                     </div>
