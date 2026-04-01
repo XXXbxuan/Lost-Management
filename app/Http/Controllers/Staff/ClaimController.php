@@ -281,14 +281,34 @@ class ClaimController extends Controller
     // 4. 歷史與收據 (History & Timeline)
     // ==========================================
 
-    public function index()
-    {
-        $claims = Claim::with(['foundItem', 'lostItem', 'handler'])
-            ->latest('claimedAt')
-            ->paginate(15);
+    public function index(Request $request)
+{
+    $openClaimId = $request->query('open_claim');
 
-        return view('staff.claims.index', compact('claims'));
+    $query = \App\Models\Claim::query()->latest();
+
+    $perPage = 10;
+
+    if ($openClaimId) {
+        $orderedIds = (clone $query)->pluck('id')->values();
+
+        $position = $orderedIds->search(function ($id) use ($openClaimId) {
+            return (string) $id === (string) $openClaimId;
+        });
+
+        if ($position !== false) {
+            $targetPage = (int) floor($position / $perPage) + 1;
+
+            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                return $targetPage;
+            });
+        }
     }
+
+    $claims = $query->paginate($perPage)->appends($request->query());
+
+    return view('staff.claims.index', compact('claims', 'openClaimId'));
+}
 
     public function showReceipt($matchId)
     {

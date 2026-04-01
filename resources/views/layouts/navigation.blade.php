@@ -54,9 +54,12 @@
                             {{ __('Lost Reports') }}
                         </x-nav-link>
 
-                        {{-- 🌟 保留這行：讓員工可以查看歷史領取紀錄 --}}
                         <x-nav-link :href="route('staff.claims.index')" :active="request()->routeIs('staff.claims.index')">
                             {{ __('Claim History') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('staff.ai-chat.index')" :active="request()->routeIs('staff.ai-chat.*')">
+                            {{ __('AI Help Assistant') }}
                         </x-nav-link>
                     @endif
                 </div>
@@ -77,7 +80,7 @@
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile.edit')">
-                             @if(Auth::user()->role === 'Passenger')
+                            @if(Auth::user()->role === 'Passenger')
                                 {{ __('Passenger Profile') }}
                             @else
                                 {{ __('Staff Profile') }}
@@ -137,18 +140,25 @@
                 <x-responsive-nav-link :href="Auth::user()->role === 'Admin' ? route('admin.dashboard') : route('staff.dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard')">
                     {{ __('Analytics Chart') }}
                 </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('staff.vouchers.index')" :active="request()->routeIs('staff.vouchers.*')">
                     {{ __('Vouchers') }}
                 </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('staff.found-items.index')" :active="request()->routeIs('staff.found-items.*')">
                     {{ __('Found Items') }}
                 </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('staff.lost-items.index')" :active="request()->routeIs('staff.lost-items.*')">
                     {{ __('Lost Reports') }}
                 </x-responsive-nav-link>
-                {{-- 🌟 行動版也加上 Claim History --}}
+
                 <x-responsive-nav-link :href="route('staff.claims.index')" :active="request()->routeIs('staff.claims.index')">
                     {{ __('Claim History') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('staff.ai-chat.index')" :active="request()->routeIs('staff.ai-chat.*')">
+                    {{ __('AI Help Assistant') }}
                 </x-responsive-nav-link>
             @endif
         </div>

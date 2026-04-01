@@ -19,19 +19,38 @@ class FoundItemController extends Controller
     }
 
     public function index(Request $request)
-    {
-        $status = $request->query('status', 'All');
+{
+    $status = $request->query('status', 'All');
+    $openItemId = $request->query('open_item');
 
-        $query = FoundItem::latest();
+    $query = \App\Models\FoundItem::query()->latest();
 
-        if ($status !== 'All') {
-            $query->where('status', $status);
-        }
-
-        $foundItems = $query->paginate(10);
-
-        return view('staff.found_items.index', compact('foundItems', 'status'));
+    if ($status !== 'All') {
+        $query->where('status', $status);
     }
+
+    $perPage = 10;
+
+    if ($openItemId) {
+        $orderedIds = (clone $query)->pluck('id')->values();
+
+        $position = $orderedIds->search(function ($id) use ($openItemId) {
+            return (string) $id === (string) $openItemId;
+        });
+
+        if ($position !== false) {
+            $targetPage = (int) floor($position / $perPage) + 1;
+
+            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                return $targetPage;
+            });
+        }
+    }
+
+    $foundItems = $query->paginate($perPage)->appends($request->query());
+
+    return view('staff.found_items.index', compact('foundItems', 'status', 'openItemId'));
+}
 
     public function create()
     {

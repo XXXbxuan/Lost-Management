@@ -69,7 +69,7 @@
                             </thead>
                             <tbody class="text-gray-600 text-sm font-light">
                                 @forelse($foundItems as $item)
-                                    <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+                                    <tr data-item-id="{{ $item->id }}" class="border-b border-gray-200 hover:bg-gray-50 transition">
                                         <td class="py-3 px-6 text-left">
                                             @if($item->image_path)
                                                 <img src="{{ asset('storage/' . $item->image_path) }}" class="w-16 h-16 object-cover border rounded shadow-sm">
@@ -112,7 +112,8 @@
                                             </span>
                                         </td>
 
-                                        <td class="py-3 px-6 text-center" x-data="{ openMenu: false, openItem: false }">
+                                        <td class="py-3 px-6 text-center"
+                                            x-data="{ openMenu: false, openItem: {{ (string)$item->id === (string)($openItemId ?? '') ? 'true' : 'false' }} }">
                                             @php
                                                 $existingMatch = \App\Models\MatchRecord::where('foundId', $item->id)->first();
 
@@ -344,4 +345,15 @@
             </div>
         </div>
     </div>
+
+    @if(!empty($openItemId))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const targetRow = document.querySelector('[data-item-id="{{ $openItemId }}"]');
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
+    @endif
 </x-app-layout>

@@ -14,19 +14,38 @@ use App\Models\Staff;
 class LostItemController extends Controller
 {
     public function index(Request $request)
-    {
-        $status = $request->query('status', 'All');
-        $query = LostItemReport::latest();
+{
+    $status = $request->query('status', 'All');
+    $openReportId = $request->query('open_report');
 
-        if ($status !== 'All') {
-            $query->where('status', $status);
-        }
+    $query = \App\Models\LostItemReport::query()->latest();
 
-        $lostItems = $query->paginate(10);
-
-        return view('staff.lost_reports.index', compact('lostItems', 'status'));
+    if ($status !== 'All') {
+        $query->where('status', $status);
     }
 
+    $perPage = 10;
+
+    if ($openReportId) {
+        $orderedIds = (clone $query)->pluck('id')->values();
+
+        $position = $orderedIds->search(function ($id) use ($openReportId) {
+            return (string) $id === (string) $openReportId;
+        });
+
+        if ($position !== false) {
+            $targetPage = (int) floor($position / $perPage) + 1;
+
+            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                return $targetPage;
+            });
+        }
+    }
+
+    $lostItems = $query->paginate($perPage)->appends($request->query());
+
+    return view('staff.lost_reports.index', compact('lostItems', 'status', 'openReportId'));
+}
     public function create()
     {
         return view('staff.lost_reports.create');

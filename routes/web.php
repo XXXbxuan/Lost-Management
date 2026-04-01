@@ -14,7 +14,7 @@ use App\Http\Controllers\Passenger\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\OTPPasswordResetController;
 use App\Http\Controllers\Staff\InventoryController;
-
+use App\Http\Controllers\Staff\AIChatController;
 // --------------------------------------------------
 // 1) 基礎重定向
 Route::get('/', function () {
@@ -67,7 +67,9 @@ Route::middleware('auth')->group(function () {
     // 員工專區 (Staff Area)
     Route::prefix('staff')->name('staff.')->group(function () {
 
-        Route::get('/check-slots', [FoundItemController::class, 'checkOccupiedSlots'])->name('check-slots');
+        Route::post('/ai-chat/clear', [AIChatController::class, 'clear'])->name('ai-chat.clear');
+        Route::get('/ai-chat', [AIChatController::class, 'index'])->name('ai-chat.index');
+        Route::post('/ai-chat/ask', [AIChatController::class, 'ask'])->name('ai-chat.ask');
         Route::patch('/found-items/inventory/slot/{fullCode}/service', [InventoryController::class, 'markService'])->name('inventory.mark_service');
         Route::patch('/found-items/inventory/slot/{fullCode}/restore', [InventoryController::class, 'restoreSlot'])->name('inventory.restore_slot');
         Route::patch('/found-items/inventory/item/{id}/remove', [InventoryController::class, 'remove'])->name('inventory.remove');
@@ -132,4 +134,8 @@ Route::middleware('guest')->group(function () {
     Route::post('forgot-password', [OTPPasswordResetController::class, 'sendResetCode'])->name('password.email');
     Route::get('reset-password-verify', [OTPPasswordResetController::class, 'showResetForm'])->name('password.verify');
     Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
+});
+
+Route::get('/test-openai', function (\App\Services\OpenAIChatService $chat) {
+    return $chat->ask('What does matched status mean?');
 });

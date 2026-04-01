@@ -10,7 +10,6 @@
             <div class="bg-white overflow-hidden shadow-2xl sm:rounded-[2.5rem] border border-gray-100">
                 <div class="p-10 text-gray-900">
                     
-                    {{-- 頂部狀態列 --}}
                     <div class="mb-10 flex justify-between items-end border-b border-gray-50 pb-8">
                         <div>
                             <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Database Ledger</p>
@@ -22,7 +21,6 @@
                         </div>
                     </div>
 
-                    {{-- 數據表格 --}}
                     <div class="overflow-hidden border border-slate-100 rounded-[2.5rem] shadow-sm bg-white">
                         <table class="min-w-full divide-y divide-slate-100">
                             <thead class="bg-slate-900">
@@ -36,8 +34,7 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-slate-50">
                                 @forelse($claims as $claim)
-                                <tr class="hover:bg-slate-50/80 transition-all group">
-                                    {{-- 1. 時間 --}}
+                                <tr data-claim-id="{{ $claim->id }}" class="hover:bg-slate-50/80 transition-all group">
                                     <td class="px-8 py-6 whitespace-nowrap">
                                         <div class="font-black text-slate-800 text-sm mb-0.5">
                                             {{ $claim->claimedAt ? $claim->claimedAt->format('Y-m-d') : $claim->created_at->format('Y-m-d') }}
@@ -47,7 +44,6 @@
                                         </div>
                                     </td>
                                     
-                                    {{-- 2. 物品詳情 --}}
                                     <td class="px-8 py-6">
                                         <div class="text-sm font-black text-indigo-600 uppercase italic group-hover:scale-105 transition-transform origin-left cursor-default">
                                             {{ $claim->foundItem->item_name ?? 'Item N/A' }}
@@ -58,7 +54,6 @@
                                         </div>
                                     </td>
                                     
-                                    {{-- 3. 領取人資訊 --}}
                                     <td class="px-8 py-6">
                                         <div class="text-sm font-black text-slate-900">{{ $claim->claimerName }}</div>
                                         <div class="flex items-center text-[10px] text-rose-500 font-black mt-1 uppercase">
@@ -67,7 +62,6 @@
                                         <div class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight italic">📞 {{ $claim->claimerPhone }}</div>
                                     </td>
                                     
-                                    {{-- 4. 處理人員 --}}
                                     <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-slate-500">
                                         <div class="flex items-center gap-3">
                                             <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-[10px]">
@@ -80,10 +74,9 @@
                                         </div>
                                     </td>
 
-                                    {{-- 5. 憑證按鈕 (防崩潰安全版) --}}
                                     <td class="px-8 py-6 whitespace-nowrap text-right">
-                                        {{-- ✅ 修正：如果 match_id 為空，則自動使用 claim->id 作為備案，防止 500 錯誤 --}}
                                         <a href="{{ route('staff.claims.receipt', $claim->match_id ?? $claim->id) }}" 
+                                           data-receipt-link="true"
                                            target="_blank"
                                            class="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg active:scale-95">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,13 +97,31 @@
                         </table>
                     </div>
 
-                    {{-- 分頁 --}}
                     <div class="mt-12">
-                        {{ $claims->links() }}
+                        {{ $claims->appends(request()->query())->links() }}
                     </div>
 
                 </div>
             </div>
         </div>
     </div>
+
+    @if(!empty($openClaimId))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const targetRow = document.querySelector('[data-claim-id="{{ $openClaimId }}"]');
+
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                setTimeout(() => {
+                    const receiptBtn = targetRow.querySelector('[data-receipt-link="true"]');
+                    if (receiptBtn) {
+                        window.open(receiptBtn.href, '_blank');
+                    }
+                }, 500);
+            }
+        });
+    </script>
+    @endif
 </x-app-layout>

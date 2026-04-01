@@ -63,7 +63,7 @@
                             </thead>
                             <tbody class="text-gray-600 text-sm">
                                 @forelse($lostItems as $lostItem)
-                                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                                    <tr data-report-id="{{ $lostItem->id }}" class="border-b border-gray-100 hover:bg-gray-50 transition">
                                         <td class="py-4 px-6 text-left whitespace-nowrap">
                                             <div class="font-bold text-gray-800">{{ $lostItem->created_at->format('Y-m-d') }}</div>
                                             <div class="text-[11px] text-gray-400 italic">{{ $lostItem->created_at->format('h:i A') }}</div>
@@ -115,7 +115,8 @@
                                             @endif
                                         </td>
 
-                                        <td class="py-4 px-6 text-center" x-data="{ openMenu: false, openReport: false }">
+                                        <td class="py-4 px-6 text-center"
+                                            x-data="{ openMenu: false, openReport: {{ (string)$lostItem->id === (string)($openReportId ?? '') ? 'true' : 'false' }} }">
                                             @php
                                                 $existingMatch = \App\Models\MatchRecord::where('lostId', $lostItem->id)->first();
                                             @endphp
@@ -370,4 +371,15 @@
             </div>
         </div>
     </div>
+
+    @if(!empty($openReportId))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const targetRow = document.querySelector('[data-report-id="{{ $openReportId }}"]');
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
+    @endif
 </x-app-layout>
