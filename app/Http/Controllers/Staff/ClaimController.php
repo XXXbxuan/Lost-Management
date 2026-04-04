@@ -45,9 +45,9 @@ class ClaimController extends Controller
         if (!$match) return null;
 
         $claim = Claim::with('handler.staff')
-    ->where('match_id', $match->id)
-    ->latest('id')
-    ->first();
+            ->where('match_id', $match->id)
+            ->latest('id')
+            ->first();
 
         $auditLogs = AdminActionLog::where(function ($q) use ($match) {
             $q->where('target_name', 'like', "%Match #{$match->id}%")
@@ -95,28 +95,26 @@ class ClaimController extends Controller
 
         $match = MatchRecord::findOrFail($request->match_id);
 
-        // 判斷是第一次還是重新預約（你原本寫法保留）
         $isReschedule = !is_null($match->appointment_at);
         $oldTime = $match->appointment_at ? \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') : 'None';
         $token = strtoupper(Str::random(6));
 
-        // ✅ 核心：更新 appointment 時，清掉 Reject 提議資料（避免一直卡 Reject）
         $match->update([
             'appointment_at'     => $fullDateTimeString,
             'verification_token' => $token,
             'is_confirmed'       => false,
             'status'             => 'Verified',
             'verifiedBy'         => auth()->id(),
-
-            // ✅ 清掉 passenger suggested
             'suggested_time_1'   => null,
             'suggested_time_2'   => null,
             'suggested_remarks'  => null,
             'rejected_at'        => null,
         ]);
 
+        $actorName = auth()->user()->name ?: (auth()->user()->username ?: 'Staff');
+
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
+            'admin_name'  => $actorName,
             'action_type' => $isReschedule ? 'RESCHEDULE_APPOINTMENT' : 'SEND_APPOINTMENT',
             'target_name' => "Match #{$match->id} (Lost #{$match->lostId} / Found #{$match->foundId})",
             'details'     => $isReschedule
@@ -139,10 +137,6 @@ class ClaimController extends Controller
         return back()->with('success', $message);
     }
 
-    /**
-     * ✅ Ajax：2 秒自動檢查 passenger 有沒有 Reject + suggested time/remarks
-     * 你要求：參考 check_scan 的方式
-     */
     public function checkReschedule($id)
     {
         $match = MatchRecord::findOrFail($id);
@@ -169,12 +163,13 @@ class ClaimController extends Controller
 
         if (auth()->check()) {
             $userRole = strtolower(auth()->user()->role);
+            $actorName = auth()->user()->name ?: (auth()->user()->username ?: 'Staff');
 
             AdminActionLog::create([
-                'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
+                'admin_name'  => $actorName,
                 'action_type' => 'SCAN_QR_ATTEMPT',
                 'target_name' => "Match #{$match->id}",
-                'details'     => "Staff [" . auth()->user()->name . "] (Role: {$userRole}) scanned QR code on-site. System state: " . $match->status
+                'details'     => "Staff [{$actorName}] (Role: {$userRole}) scanned QR code on-site. System state: " . $match->status
             ]);
 
             if ($userRole === 'admin' || $userRole === 'staff') {
@@ -219,7 +214,7 @@ class ClaimController extends Controller
     // 3. 現場結案 (Handover)
     // ==========================================
 
-public function handover(Request $request, $id)
+    public function handover(Request $request, $id)
     {
         Cache::forget('staff_scan_' . auth()->id());
 
@@ -232,71 +227,72 @@ public function handover(Request $request, $id)
             'foundItem' => $match->foundItem
         ]);
     }
-public function completeHandover(Request $request, $id)
-{
-    $request->validate([
-        'claimerName' => 'required|string|max:255',
-        'claimerIcPassport' => 'required|string|max:50',
-        'handover_photo' => 'required|image|max:5120',
-        'handover_notes' => 'nullable|string|max:1000',
-    ]);
 
-    $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
+    public function completeHandover(Request $request, $id)
+    {
+        $request->validate([
+            'claimerName' => 'required|string|max:255',
+            'claimerIcPassport' => 'required|string|max:50',
+            'handover_photo' => 'required|image|max:5120',
+            'handover_notes' => 'nullable|string|max:1000',
+        ]);
 
-    try {
-        DB::transaction(function () use ($match, $request) {
-            $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
-            $claimedAt = now();
+        $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
 
-            $processedByName = auth()->user()->staff->name
-                ?? auth()->user()->username
-                ?? auth()->user()->name
-                ?? 'Authorized Staff';
+        try {
+            DB::transaction(function () use ($match, $request) {
+                $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
+                $claimedAt = now();
 
-            $claim = Claim::create([
-                'match_id' => $match->id,
-                'lostId' => $match->lostId,
-                'foundId' => $match->foundId,
-                'processedBy' => auth()->id(),
-                'processed_by_name' => $processedByName,
-                'claimerName' => $request->claimerName,
-                'claimerIcPassport' => $request->claimerIcPassport,
-                'claimerPhone' => $match->lostItem->passenger_phone ?? '-',
-                'handover_photo' => $photoPath,
-                'claimedAt' => $claimedAt,
-                'handover_notes' => filled($request->handover_notes) ? $request->handover_notes : null,
-            ]);
+                $processedByName = auth()->user()->staff->name
+                    ?? auth()->user()->username
+                    ?? auth()->user()->name
+                    ?? 'Authorized Staff';
 
-            $claim->update([
-                'receipt_no' => 'REF-' . $claim->id,
-            ]);
+                $claim = Claim::create([
+                    'match_id' => $match->id,
+                    'lostId' => $match->lostId,
+                    'foundId' => $match->foundId,
+                    'processedBy' => auth()->id(),
+                    'processed_by_name' => $processedByName,
+                    'claimerName' => $request->claimerName,
+                    'claimerIcPassport' => $request->claimerIcPassport,
+                    'claimerPhone' => $match->lostItem->passenger_phone ?? '-',
+                    'handover_photo' => $photoPath,
+                    'claimedAt' => $claimedAt,
+                    'handover_notes' => filled($request->handover_notes) ? $request->handover_notes : null,
+                ]);
 
-            $match->update([
-                'status' => 'Claimed',
-                'verifiedAt' => $claimedAt,
-            ]);
+                $claim->update([
+                    'receipt_no' => 'REF-' . $claim->id,
+                ]);
 
-            $match->lostItem->update([
-                'status' => 'Claimed',
-            ]);
+                $match->update([
+                    'status' => 'Claimed',
+                    'verifiedAt' => $claimedAt,
+                ]);
 
-            $match->foundItem->update([
-                'status' => 'Claimed',
-            ]);
+                $match->lostItem->update([
+                    'status' => 'Claimed',
+                ]);
 
-            AdminActionLog::create([
-                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-                'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                'target_name' => "Lost Report #{$match->lostId} | Passenger: {$request->claimerName}",
-                'details' => "Handover confirmed with photo. IC: {$request->claimerIcPassport}",
-            ]);
-        });
+                $match->foundItem->update([
+                    'status' => 'Claimed',
+                ]);
 
-        return redirect()->route('staff.claims.index')->with('success', 'Handover Completed.');
-    } catch (\Exception $e) {
-        return back()->with('error', 'Handover Failed: ' . $e->getMessage());
+                AdminActionLog::create([
+                    'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+                    'action_type' => 'ITEM_HANDOVER_SUCCESS',
+                    'target_name' => "Lost Report #{$match->lostId} | Passenger: {$request->claimerName}",
+                    'details' => "Handover confirmed with photo. IC: {$request->claimerIcPassport}",
+                ]);
+            });
+
+            return redirect()->route('staff.claims.index')->with('success', 'Handover Completed.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Handover Failed: ' . $e->getMessage());
+        }
     }
-}
 
     // ==========================================
     // 4. 歷史與收據 (History & Timeline)
@@ -336,11 +332,13 @@ public function completeHandover(Request $request, $id)
         $data = $this->getCompleteCaseContext($matchId, 'match_id');
         if (!$data) abort(404, 'Receipt not found.');
 
+        $actorName = auth()->user()->name ?: (auth()->user()->username ?: 'Staff');
+
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
+            'admin_name'  => $actorName,
             'action_type' => 'VIEW_RECEIPT',
             'target_name' => "Match #{$matchId}",
-            'details'     => "Admin " . auth()->user()->name . " viewed the official receipt/manifest for Match #{$matchId}."
+            'details'     => "Admin {$actorName} viewed the official receipt/manifest for Match #{$matchId}."
         ]);
 
         return view('staff.claims.receipt', $data);

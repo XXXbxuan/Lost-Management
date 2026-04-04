@@ -53,10 +53,10 @@
                         <table class="min-w-full bg-white border-collapse">
                             <thead>
                                 <tr class="bg-gray-50 text-gray-600 uppercase text-xs leading-normal border-b">
-                                    <th class="py-4 px-6 text-left font-bold">Date</th>
+                                    <th class="py-4 px-4 text-left font-bold">ID</th>
                                     <th class="py-4 px-6 text-left font-bold">Item Details</th>
                                     <th class="py-4 px-6 text-left font-bold">Passenger Info</th>
-                                    <th class="py-4 px-6 text-left font-bold">Lost Location</th>
+                                    <th class="py-4 px-6 text-left font-bold">Location</th>
                                     <th class="py-4 px-6 text-center font-bold">Status</th>
                                     <th class="py-4 px-6 text-center font-bold">Action</th>
                                 </tr>
@@ -64,9 +64,8 @@
                             <tbody class="text-gray-600 text-sm">
                                 @forelse($lostItems as $lostItem)
                                     <tr data-report-id="{{ $lostItem->id }}" class="border-b border-gray-100 hover:bg-gray-50 transition">
-                                        <td class="py-4 px-6 text-left whitespace-nowrap">
-                                            <div class="font-bold text-gray-800">{{ $lostItem->created_at->format('Y-m-d') }}</div>
-                                            <div class="text-[11px] text-gray-400 italic">{{ $lostItem->created_at->format('h:i A') }}</div>
+                                        <td class="py-4 px-4 text-left align-top">
+                                            <div class="text-sm font-bold text-slate-700">{{ $lostItem->id }}</div>
                                         </td>
 
                                         <td class="py-4 px-6 text-left">
@@ -91,7 +90,10 @@
                                         </td>
 
                                         <td class="py-4 px-6 text-left">
-                                            <div class="text-gray-700">{{ $lostItem->lost_location }}</div>
+                                            <div class="font-semibold text-gray-700">{{ $lostItem->lost_location }}</div>
+                                            <div class="text-xs text-gray-400">
+                                                {{ optional($lostItem->lost_time)->format('Y-m-d H:i:s') ?? $lostItem->lost_time }}
+                                            </div>
                                             @if($lostItem->flight_number)
                                                 <div class="text-[11px] text-blue-500 font-semibold bg-blue-50 px-1.5 py-0.5 rounded inline-block mt-1">
                                                     Flight: {{ $lostItem->flight_number }}
@@ -118,8 +120,15 @@
                                         <td class="py-4 px-6 text-center"
                                             x-data="{ openMenu: false, openReport: {{ (string)$lostItem->id === (string)($openReportId ?? '') ? 'true' : 'false' }} }">
                                             @php
-                                                $existingMatch = \App\Models\MatchRecord::where('lostId', $lostItem->id)->first();
-                                            @endphp
+    $existingMatch = null;
+
+    if (in_array($lostItem->status, ['Matched', 'Claimed', 'Reschedule Requested'])) {
+        $existingMatch = \App\Models\MatchRecord::where('lostId', $lostItem->id)
+            ->whereIn('status', ['Verified', 'Confirmed', 'Claimed', 'Reschedule Requested'])
+            ->latest('id')
+            ->first();
+    }
+@endphp
 
                                             <div class="relative inline-block text-left">
                                                 <button type="button"
@@ -137,16 +146,21 @@
 
                                                     <div class="flex flex-col gap-2">
                                                         @if($lostItem->status === 'LOST' || $lostItem->status === 'Lost')
+                                                        <a href="{{ route('staff.lost-items.show', $lostItem->id) }}"
+                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 no-underline block">
+                                                                ⚡ Match
+                                                            </a>
+                                                            <a href="{{ route('staff.lost-items.edit', $lostItem->id) }}"
+                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 no-underline block">
+                                                                ✏️ Edit
+                                                            </a>
                                                             <button type="button"
                                                                     @click="openMenu = false; openReport = true"
                                                                     class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                                                                 📋 View Report
                                                             </button>
 
-                                                            <a href="{{ route('staff.lost-items.edit', $lostItem->id) }}"
-                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 no-underline block">
-                                                                ✏️ Edit
-                                                            </a>
+                                                            
 
                                                             <form method="POST"
                                                                   action="{{ route('staff.lost-items.destroy', $lostItem->id) }}"
@@ -159,18 +173,11 @@
                                                                 </button>
                                                             </form>
 
-                                                            <a href="{{ route('staff.lost-items.show', $lostItem->id) }}"
-                                                               class="w-full text-left whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 no-underline block">
-                                                                ⚡ Match
-                                                            </a>
+                                                            
                                                         @endif
 
                                                         @if(in_array($lostItem->status, ['Matched', 'Reschedule Requested']))
-                                                            <button type="button"
-                                                                    @click="openMenu = false; openReport = true"
-                                                                    class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                                                📋 View Report
-                                                            </button>
+                                                            
 
                                                             @if($existingMatch)
                                                                 <a href="{{ route('staff.claims.process', $existingMatch->id) }}"
@@ -183,6 +190,11 @@
                                                                     🛠 Manage Claim
                                                                 </a>
                                                             @endif
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openReport = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Report
+                                                            </button>
 
                                                             <form action="{{ route('staff.match.unmatch', $lostItem->id) }}"
                                                                   method="POST"
@@ -235,30 +247,75 @@
                                                         @else
                                                             <div class="w-full py-10 bg-white rounded-[3rem] border border-slate-200 mb-6">
                                                                 <div class="flex items-start justify-center relative px-8">
-                                                                    <div class="flex flex-col items-center w-full relative">
-                                                                        <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
-                                                                            ✓
+                                                                    <div class="flex items-center justify-center w-full max-w-5xl mx-auto relative">
+                                                                        
+                                                                        <div class="absolute top-5 left-[17%] right-[17%] h-[2px] bg-gray-200 z-0"></div>
+
+                                                                        <div class="flex flex-col items-center w-1/5 relative z-10">
+                                                                            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md border-4 border-white">
+                                                                                ✓
+                                                                            </div>
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-800">Report</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                                                                                <p class="font-bold">{{ optional($lostItem->created_at)->format('M d, h:i A') ?? 'N/A' }}</p>
+                                                                                <p class="truncate w-28 mx-auto text-indigo-500 font-medium">
+                                                                                    Lost: {{ $lostItem->lost_location ?? 'N/A' }}
+                                                                                </p>
+                                                                                <p class="text-indigo-600 font-black uppercase italic break-words">
+                                                                                    {{ $lostItem->item_name ?? 'N/A' }}
+                                                                                </p>
+                                                                                <p class="text-indigo-400 font-bold">
+                                                                                    By: {{ $lostItem->staff?->name ?? 'Staff' }}
+                                                                                </p>
+                                                                            </div>
                                                                         </div>
-                                                                        <h3 class="mt-2 text-sm font-bold text-gray-800">Report</h3>
-                                                                        <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
-                                                                            <p class="font-bold">{{ optional($lostItem->created_at)->format('M d, h:i A') ?? 'N/A' }}</p>
-                                                                            <p class="truncate w-28 mx-auto text-indigo-500 font-medium">
-                                                                                Lost: {{ $lostItem->lost_location ?? 'N/A' }}
-                                                                            </p>
-                                                                            <p class="text-indigo-600 font-black uppercase italic break-words">
-                                                                                {{ $lostItem->item_name ?? 'N/A' }}
-                                                                            </p>
-                                                                            <p class="text-indigo-400 font-bold">
-                                                                                By: {{ $lostItem->staff?->name ?? 'Staff' }}
-                                                                            </p>
-                                                                            <p class="italic text-gray-400 mt-2">Awaiting match...</p>
+
+                                                                        <div class="flex flex-col items-center w-1/5 relative z-10">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md border-4 border-white">
+                                                                                2
+                                                                            </div>
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Matched</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-400 italic">
+                                                                                Awaiting match
+                                                                            </div>
                                                                         </div>
+
+                                                                        <div class="flex flex-col items-center w-1/5 relative z-10">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md border-4 border-white">
+                                                                                3
+                                                                            </div>
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Appointment</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-400 italic">
+                                                                                Pending
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="flex flex-col items-center w-1/5 relative z-10">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md border-4 border-white">
+                                                                                4
+                                                                            </div>
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Confirmed</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-400 italic">
+                                                                                Pending
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="flex flex-col items-center w-1/5 relative z-10">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md border-4 border-white">
+                                                                                5
+                                                                            </div>
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Claimed</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-400 italic">
+                                                                                Pending
+                                                                            </div>
+                                                                        </div>
+
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         @endif
 
-                                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        <div class="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
                                                             <div>
                                                                 @if($lostItem->image_path)
                                                                     <img src="{{ asset('storage/' . $lostItem->image_path) }}"
@@ -270,7 +327,12 @@
                                                                 @endif
                                                             </div>
 
-                                                            <div class="space-y-3 text-sm text-slate-700">
+                                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm text-slate-700">
+                                                                <div>
+                                                                    <div class="text-xs font-bold uppercase text-slate-400">ID</div>
+                                                                    <div>{{ $lostItem->id }}</div>
+                                                                </div>
+
                                                                 <div>
                                                                     <div class="text-xs font-bold uppercase text-slate-400">Item Name</div>
                                                                     <div class="font-semibold text-slate-800">{{ $lostItem->item_name }}</div>

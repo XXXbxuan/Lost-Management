@@ -60,6 +60,7 @@
                         <table class="min-w-full bg-white border border-gray-200">
                             <thead>
                                 <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal">
+                                    <th class="py-3 px-4 text-left">ID</th>
                                     <th class="py-3 px-6 text-left">Image</th>
                                     <th class="py-3 px-6 text-left">Item Details</th>
                                     <th class="py-3 px-6 text-left">Location</th>
@@ -70,6 +71,10 @@
                             <tbody class="text-gray-600 text-sm font-light">
                                 @forelse($foundItems as $item)
                                     <tr data-item-id="{{ $item->id }}" class="border-b border-gray-200 hover:bg-gray-50 transition">
+                                        <td class="py-3 px-4 text-left align-top">
+                                            <div class="text-sm font-bold text-slate-700">{{ $item->id }}</div>
+                                        </td>
+
                                         <td class="py-3 px-6 text-left">
                                             @if($item->image_path)
                                                 <img src="{{ asset('storage/' . $item->image_path) }}" class="w-16 h-16 object-cover border rounded shadow-sm">
@@ -115,25 +120,32 @@
                                         <td class="py-3 px-6 text-center"
                                             x-data="{ openMenu: false, openItem: {{ (string)$item->id === (string)($openItemId ?? '') ? 'true' : 'false' }} }">
                                             @php
-                                                $existingMatch = \App\Models\MatchRecord::where('foundId', $item->id)->first();
+    $existingMatch = null;
 
-                                                $latestRemove = \App\Models\InventoryMovement::where('found_item_id', $item->id)
-                                                    ->where('action_type', 'remove')
-                                                    ->latest('created_at')
-                                                    ->first();
+    if (in_array($item->status, ['Matched', 'Claimed'])) {
+        $existingMatch = \App\Models\MatchRecord::where('foundId', $item->id)
+            ->whereIn('status', ['Verified', 'Confirmed', 'Claimed', 'Reschedule Requested'])
+            ->latest('id')
+            ->first();
+    }
 
-                                                $latestRemoveWithLocation = \App\Models\InventoryMovement::where('found_item_id', $item->id)
-                                                    ->where('action_type', 'remove')
-                                                    ->whereNotNull('from_location')
-                                                    ->where('from_location', '!=', '')
-                                                    ->latest('created_at')
-                                                    ->first();
+    $latestRemove = \App\Models\InventoryMovement::where('found_item_id', $item->id)
+        ->where('action_type', 'remove')
+        ->latest('created_at')
+        ->first();
 
-                                                $removedFrom = $latestRemoveWithLocation?->from_location
-                                                    ?? $latestRemove?->to_location
-                                                    ?? $item->storage_location
-                                                    ?? null;
-                                            @endphp
+    $latestRemoveWithLocation = \App\Models\InventoryMovement::where('found_item_id', $item->id)
+        ->where('action_type', 'remove')
+        ->whereNotNull('from_location')
+        ->where('from_location', '!=', '')
+        ->latest('created_at')
+        ->first();
+
+    $removedFrom = $latestRemoveWithLocation?->from_location
+        ?? $latestRemove?->to_location
+        ?? $item->storage_location
+        ?? null;
+@endphp
 
                                             <div class="relative inline-block text-left">
                                                 <button type="button"
@@ -151,16 +163,17 @@
 
                                                     <div class="flex flex-col gap-2">
                                                         @if($item->status === 'Unclaimed')
-                                                            <button type="button"
-                                                                    @click="openMenu = false; openItem = true"
-                                                                    class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                                                📋 View Item
-                                                            </button>
+                                                            
 
                                                             <a href="{{ route('staff.found-items.edit', $item->id) }}"
                                                                class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 no-underline block">
                                                                 ✏️ Edit
                                                             </a>
+                                                            <button type="button"
+                                                                    @click="openMenu = false; openItem = true"
+                                                                    class="w-full text-left whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                                                📋 View Item
+                                                            </button>
 
                                                             <form method="POST"
                                                                   action="{{ route('staff.found-items.destroy', $item->id) }}"
@@ -172,6 +185,7 @@
                                                                     🗑 Delete
                                                                 </button>
                                                             </form>
+                                                            
                                                         @endif
 
                                                         @if($item->status === 'Matched' && $existingMatch)
@@ -209,7 +223,7 @@
                                                  style="display: none;">
 
                                                 <div @click.away="openItem = false"
-                                                     class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+                                                     class="w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
 
                                                     <div class="flex items-center justify-between border-b px-6 py-4">
                                                         <h3 class="text-lg font-bold text-slate-800">Found Item Details</h3>
@@ -227,7 +241,7 @@
                                                             'existingMatch' => $existingMatch
                                                         ])
 
-                                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        <div class="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
                                                             <div>
                                                                 @if($item->image_path)
                                                                     <img src="{{ asset('storage/' . $item->image_path) }}"
@@ -239,7 +253,12 @@
                                                                 @endif
                                                             </div>
 
-                                                            <div class="space-y-3 text-sm text-slate-700">
+                                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm text-slate-700">
+                                                                <div>
+                                                                    <div class="text-xs font-bold uppercase text-slate-400">ID</div>
+                                                                    <div>{{ $item->id }}</div>
+                                                                </div>
+
                                                                 <div>
                                                                     <div class="text-xs font-bold uppercase text-slate-400">Item Name</div>
                                                                     <div class="font-semibold text-slate-800">{{ $item->item_name }}</div>
@@ -285,6 +304,13 @@
                                                                     <div>{{ $item->status }}</div>
                                                                 </div>
 
+                                                                @if($item->storage_location)
+                                                                <div>
+                                                                    <div class="text-xs font-bold uppercase text-slate-400">Storage Location</div>
+                                                                    <div>{{ $item->storage_location }}</div>
+                                                                </div>
+                                                                @endif
+
                                                                 @if($item->status === 'Removed')
                                                                     <div>
                                                                         <div class="text-xs font-bold uppercase text-red-400">Removed From</div>
@@ -324,7 +350,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="py-10 text-center text-gray-400 italic bg-gray-50">
+                                        <td colspan="6" class="py-10 text-center text-gray-400 italic bg-gray-50">
                                             No items found in this category.
                                             <br>
                                             <a href="{{ route('staff.found-items.create') }}" class="text-blue-600 hover:underline font-bold text-xs mt-2 inline-block">

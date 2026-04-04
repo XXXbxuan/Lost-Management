@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Http\Requests\StoreFoundItemRequest;
 use App\Services\FoundItemService;
 use Illuminate\Http\Request;
+use App\Models\AdminActionLog;
 
 class FoundItemController extends Controller
 {
@@ -19,38 +20,38 @@ class FoundItemController extends Controller
     }
 
     public function index(Request $request)
-{
-    $status = $request->query('status', 'All');
-    $openItemId = $request->query('open_item');
+    {
+        $status = $request->query('status', 'All');
+        $openItemId = $request->query('open_item');
 
-    $query = \App\Models\FoundItem::query()->latest();
+        $query = \App\Models\FoundItem::query()->latest();
 
-    if ($status !== 'All') {
-        $query->where('status', $status);
-    }
-
-    $perPage = 10;
-
-    if ($openItemId) {
-        $orderedIds = (clone $query)->pluck('id')->values();
-
-        $position = $orderedIds->search(function ($id) use ($openItemId) {
-            return (string) $id === (string) $openItemId;
-        });
-
-        if ($position !== false) {
-            $targetPage = (int) floor($position / $perPage) + 1;
-
-            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
-                return $targetPage;
-            });
+        if ($status !== 'All') {
+            $query->where('status', $status);
         }
+
+        $perPage = 10;
+
+        if ($openItemId) {
+            $orderedIds = (clone $query)->pluck('id')->values();
+
+            $position = $orderedIds->search(function ($id) use ($openItemId) {
+                return (string) $id === (string) $openItemId;
+            });
+
+            if ($position !== false) {
+                $targetPage = (int) floor($position / $perPage) + 1;
+
+                \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                    return $targetPage;
+                });
+            }
+        }
+
+        $foundItems = $query->paginate($perPage)->appends($request->query());
+
+        return view('staff.found_items.index', compact('foundItems', 'status', 'openItemId'));
     }
-
-    $foundItems = $query->paginate($perPage)->appends($request->query());
-
-    return view('staff.found_items.index', compact('foundItems', 'status', 'openItemId'));
-}
 
     public function create()
     {
@@ -182,6 +183,13 @@ class FoundItemController extends Controller
 
         $foundItem->update($validated);
 
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+            'action_type' => 'UPDATE_FOUND_ITEM',
+            'target_name' => "Found Item #{$foundItem->id}",
+            'details'     => "Updated found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}.",
+        ]);
+
         return redirect()
             ->route('staff.found-items.index')
             ->with('success', 'Found item updated successfully.');
@@ -194,6 +202,13 @@ class FoundItemController extends Controller
                 ->route('staff.found-items.index')
                 ->with('error', 'Only unclaimed items can be deleted.');
         }
+
+        AdminActionLog::create([
+            'admin_name'  => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+            'action_type' => 'DELETE_FOUND_ITEM',
+            'target_name' => "Found Item #{$foundItem->id}",
+            'details'     => "Deleted found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}.",
+        ]);
 
         $foundItem->delete();
 
@@ -237,40 +252,40 @@ class FoundItemController extends Controller
     }
 
     public function exportFoundItems()
-    {
-        $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
+{
+    $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
 
-        $items = FoundItem::orderBy('id', 'asc')->get();
+    $items = FoundItem::orderBy('id', 'asc')->get();
 
-        $headers = [
-            'Content-type'        => 'text/csv',
-            'Content-Disposition' => "attachment; filename=$fileName",
-            'Pragma'              => 'no-cache',
-            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires'             => '0',
-        ];
+    $headers = [
+        'Content-type'        => 'text/csv',
+        'Content-Disposition' => "attachment; filename=$fileName",
+        'Pragma'              => 'no-cache',
+        'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+        'Expires'             => '0',
+    ];
 
-        $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
+    $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
 
-        $callback = function () use ($items, $columns) {
-            $file = fopen('php://output', 'w');
+    $callback = function () use ($items, $columns) {
+        $file = fopen('php://output', 'w');
 
-            fputcsv($file, $columns);
+        fputcsv($file, $columns);
 
-            foreach ($items as $item) {
-                fputcsv($file, [
-                    $item->id,
-                    $item->item_name,
-                    $item->category,
-                    $item->found_location,
-                    $item->status,
-                    $item->created_at->format('Y-m-d H:i:s'),
-                ]);
-            }
+        foreach ($items as $item) {
+            fputcsv($file, [
+                $item->id,
+                $item->item_name,
+                $item->category,
+                $item->found_location,
+                $item->status,
+                $item->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
 
-            fclose($file);
-        };
+        fclose($file);
+    };
 
-        return response()->stream($callback, 200, $headers);
-    }
+    return response()->stream($callback, 200, $headers);
+}
 }

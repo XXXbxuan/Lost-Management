@@ -8,6 +8,7 @@ use App\Models\StorageSlot;
 use Illuminate\Http\Request;
 use App\Models\InventoryMovement;
 use Illuminate\Support\Facades\DB;
+use App\Models\AdminActionLog;
 
 class InventoryController extends Controller
 {
@@ -107,6 +108,7 @@ class InventoryController extends Controller
             'moveSlots' => $moveSlots,
         ]);
     }
+
     public function move(Request $request, $id)
     {
         $item = FoundItem::findOrFail($id);
@@ -153,12 +155,20 @@ class InventoryController extends Controller
                 'remarks' => 'Item moved from inventory slot details page.',
                 'performed_by' => auth()->id(),
             ]);
+
+            AdminActionLog::create([
+                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+                'action_type' => 'MOVE_FOUND_ITEM',
+                'target_name' => "Found Item #{$item->id}",
+                'details' => "Moved item: {$item->item_name} from [{$fromLocation}] to [{$targetSlot->full_code}].",
+            ]);
         });
 
         return redirect()
             ->route('staff.inventory.show_slot', $targetSlot->full_code)
             ->with('success', 'Item moved successfully.');
     }
+
     public function remove(Request $request, $id)
     {
         $item = FoundItem::findOrFail($id);
@@ -216,39 +226,54 @@ class InventoryController extends Controller
                 'remarks' => $request->removal_reason,
                 'performed_by' => auth()->id(),
             ]);
+
+            AdminActionLog::create([
+                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+                'action_type' => $autoRemoveEligible ? 'AUTO_REMOVE_FOUND_ITEM' : 'REMOVE_FOUND_ITEM',
+                'target_name' => "Found Item #{$item->id}",
+                'details' => "Removed item: {$item->item_name} from [{$oldLocation}]. Reason: {$request->removal_reason}.",
+            ]);
         });
 
         return redirect()
             ->route('staff.inventory.index', ['zone' => explode('-', $oldLocation)[0] ?? 'GEN'])
             ->with('success', 'Item removed from inventory successfully.');
     }
+
     public function markService(Request $request, $fullCode)
-{
-    $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+    {
+        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
 
-    $request->validate([
-        'service_remark' => ['required', 'string', 'max:255'],
-    ]);
+        $request->validate([
+            'service_remark' => ['required', 'string', 'max:255'],
+        ]);
 
-    $hasActiveItem = FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
-        ->where('storage_location', $fullCode)
-        ->exists();
+        $hasActiveItem = FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
+            ->where('storage_location', $fullCode)
+            ->exists();
 
-    if ($hasActiveItem) {
-        return back()->with('error', 'This slot is currently occupied. Move or remove the item first.');
+        if ($hasActiveItem) {
+            return back()->with('error', 'This slot is currently occupied. Move or remove the item first.');
+        }
+
+        if ($slot->slot_status === 'Service') {
+            return back()->with('error', 'This slot is already marked as service.');
+        }
+
+        $slot->update([
+            'slot_status' => 'Service',
+            'remark' => $request->service_remark,
+        ]);
+
+        AdminActionLog::create([
+            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+            'action_type' => 'MARK_SLOT_SERVICE',
+            'target_name' => "Storage Slot {$slot->full_code}",
+            'details' => "Marked slot as service. Remark: {$request->service_remark}",
+        ]);
+
+        return back()->with('success', 'Slot marked as service successfully.');
     }
-
-    if ($slot->slot_status === 'Service') {
-        return back()->with('error', 'This slot is already marked as service.');
-    }
-
-    $slot->update([
-        'slot_status' => 'Service',
-        'remark' => $request->service_remark,
-    ]);
-
-    return back()->with('success', 'Slot marked as service successfully.');
-}
 
     public function restoreSlot($fullCode)
     {
@@ -263,7 +288,13 @@ class InventoryController extends Controller
             'remark' => null,
         ]);
 
+        AdminActionLog::create([
+            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+            'action_type' => 'RESTORE_SLOT_SERVICE',
+            'target_name' => "Storage Slot {$slot->full_code}",
+            'details' => "Restored slot from service to available.",
+        ]);
+
         return back()->with('success', 'Slot restored to available successfully.');
     }
-
 }
