@@ -136,6 +136,3 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password-verify', [OTPPasswordResetController::class, 'resetPassword'])->name('password.update.otp');
 });
 
-Route::get('/test-openai', function (\App\Services\OpenAIChatService $chat) {
-    return $chat->ask('What does matched status mean?');
-});

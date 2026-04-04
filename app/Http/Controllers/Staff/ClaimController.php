@@ -25,7 +25,7 @@ class ClaimController extends Controller
         $query = MatchRecord::with([
             'foundItem.staff',
             'lostItem.staff',
-            'verifier'
+            'verifier.staff'
         ]);
 
         if ($identifierType === 'match_id') {
@@ -44,10 +44,10 @@ class ClaimController extends Controller
 
         if (!$match) return null;
 
-        $claim = Claim::with('handler')
-            ->where('lostId', $match->lostId)
-            ->where('foundId', $match->foundId)
-            ->first();
+        $claim = Claim::with('handler.staff')
+    ->where('match_id', $match->id)
+    ->latest('id')
+    ->first();
 
         $auditLogs = AdminActionLog::where(function ($q) use ($match) {
             $q->where('target_name', 'like', "%Match #{$match->id}%")
@@ -116,7 +116,7 @@ class ClaimController extends Controller
         ]);
 
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name,
+            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
             'action_type' => $isReschedule ? 'RESCHEDULE_APPOINTMENT' : 'SEND_APPOINTMENT',
             'target_name' => "Match #{$match->id} (Lost #{$match->lostId} / Found #{$match->foundId})",
             'details'     => $isReschedule
@@ -171,7 +171,7 @@ class ClaimController extends Controller
             $userRole = strtolower(auth()->user()->role);
 
             AdminActionLog::create([
-                'admin_name'  => auth()->user()->name,
+                'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
                 'action_type' => 'SCAN_QR_ATTEMPT',
                 'target_name' => "Match #{$match->id}",
                 'details'     => "Staff [" . auth()->user()->name . "] (Role: {$userRole}) scanned QR code on-site. System state: " . $match->status
@@ -219,7 +219,7 @@ class ClaimController extends Controller
     // 3. 現場結案 (Handover)
     // ==========================================
 
-    public function handover(Request $request, $id)
+public function handover(Request $request, $id)
     {
         Cache::forget('staff_scan_' . auth()->id());
 
@@ -232,83 +232,104 @@ class ClaimController extends Controller
             'foundItem' => $match->foundItem
         ]);
     }
+public function completeHandover(Request $request, $id)
+{
+    $request->validate([
+        'claimerName' => 'required|string|max:255',
+        'claimerIcPassport' => 'required|string|max:50',
+        'handover_photo' => 'required|image|max:5120',
+        'handover_notes' => 'nullable|string|max:1000',
+    ]);
 
-    public function completeHandover(Request $request, $id)
-    {
-        $request->validate([
-            'passenger_name_ic' => 'required|string|max:255',
-            'passenger_ic'      => 'required|string|max:50',
-            'handover_photo'    => 'required|image|max:5120',
-        ]);
+    $match = MatchRecord::with(['lostItem', 'foundItem'])->findOrFail($id);
 
-        $match = MatchRecord::findOrFail($id);
+    try {
+        DB::transaction(function () use ($match, $request) {
+            $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
+            $claimedAt = now();
 
-        try {
-            DB::transaction(function () use ($match, $request) {
-                $photoPath = $request->file('handover_photo')->store('handover_photos', 'public');
+            $processedByName = auth()->user()->staff->name
+                ?? auth()->user()->username
+                ?? auth()->user()->name
+                ?? 'Authorized Staff';
 
-                Claim::create([
-                    'match_id'          => $match->id,
-                    'lostId'            => $match->lostId,
-                    'foundId'           => $match->foundId,
-                    'claimerName'       => $request->passenger_name_ic,
-                    'claimerIcPassport' => $request->passenger_ic,
-                    'claimerPhone'      => $match->lostItem->passenger_phone ?? 'N/A',
-                    'processedBy'       => auth()->id(),
-                    'claimedAt'         => now(),
-                    'handover_photo'    => $photoPath,
-                ]);
+            $claim = Claim::create([
+                'match_id' => $match->id,
+                'lostId' => $match->lostId,
+                'foundId' => $match->foundId,
+                'processedBy' => auth()->id(),
+                'processed_by_name' => $processedByName,
+                'claimerName' => $request->claimerName,
+                'claimerIcPassport' => $request->claimerIcPassport,
+                'claimerPhone' => $match->lostItem->passenger_phone ?? '-',
+                'handover_photo' => $photoPath,
+                'claimedAt' => $claimedAt,
+                'handover_notes' => filled($request->handover_notes) ? $request->handover_notes : null,
+            ]);
 
-                $match->update(['status' => 'Claimed', 'verifiedAt' => now()]);
-                $match->lostItem->update(['status' => 'Claimed']);
-                $match->foundItem->update(['status' => 'Claimed']);
+            $claim->update([
+                'receipt_no' => 'REF-' . $claim->id,
+            ]);
 
-                AdminActionLog::create([
-                    'admin_name'  => auth()->user()->name,
-                    'action_type' => 'ITEM_HANDOVER_SUCCESS',
-                    'target_name' => "Lost Report #{$match->lostId} | Passenger: {$request->passenger_name_ic}",
-                    'details'     => "Handover confirmed with photo. IC: {$request->passenger_ic}"
-                ]);
-            });
+            $match->update([
+                'status' => 'Claimed',
+                'verifiedAt' => $claimedAt,
+            ]);
 
-            return redirect()->route('staff.claims.index')->with('success', 'Handover Completed.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Handover Failed: ' . $e->getMessage());
-        }
+            $match->lostItem->update([
+                'status' => 'Claimed',
+            ]);
+
+            $match->foundItem->update([
+                'status' => 'Claimed',
+            ]);
+
+            AdminActionLog::create([
+                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
+                'action_type' => 'ITEM_HANDOVER_SUCCESS',
+                'target_name' => "Lost Report #{$match->lostId} | Passenger: {$request->claimerName}",
+                'details' => "Handover confirmed with photo. IC: {$request->claimerIcPassport}",
+            ]);
+        });
+
+        return redirect()->route('staff.claims.index')->with('success', 'Handover Completed.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'Handover Failed: ' . $e->getMessage());
     }
+}
 
     // ==========================================
     // 4. 歷史與收據 (History & Timeline)
     // ==========================================
 
     public function index(Request $request)
-{
-    $openClaimId = $request->query('open_claim');
+    {
+        $openClaimId = $request->query('open_claim');
 
-    $query = \App\Models\Claim::query()->latest();
+        $query = \App\Models\Claim::query()->latest();
 
-    $perPage = 10;
+        $perPage = 10;
 
-    if ($openClaimId) {
-        $orderedIds = (clone $query)->pluck('id')->values();
+        if ($openClaimId) {
+            $orderedIds = (clone $query)->pluck('id')->values();
 
-        $position = $orderedIds->search(function ($id) use ($openClaimId) {
-            return (string) $id === (string) $openClaimId;
-        });
-
-        if ($position !== false) {
-            $targetPage = (int) floor($position / $perPage) + 1;
-
-            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
-                return $targetPage;
+            $position = $orderedIds->search(function ($id) use ($openClaimId) {
+                return (string) $id === (string) $openClaimId;
             });
+
+            if ($position !== false) {
+                $targetPage = (int) floor($position / $perPage) + 1;
+
+                \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                    return $targetPage;
+                });
+            }
         }
+
+        $claims = $query->paginate($perPage)->appends($request->query());
+
+        return view('staff.claims.index', compact('claims', 'openClaimId'));
     }
-
-    $claims = $query->paginate($perPage)->appends($request->query());
-
-    return view('staff.claims.index', compact('claims', 'openClaimId'));
-}
 
     public function showReceipt($matchId)
     {
@@ -316,7 +337,7 @@ class ClaimController extends Controller
         if (!$data) abort(404, 'Receipt not found.');
 
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name,
+            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
             'action_type' => 'VIEW_RECEIPT',
             'target_name' => "Match #{$matchId}",
             'details'     => "Admin " . auth()->user()->name . " viewed the official receipt/manifest for Match #{$matchId}."

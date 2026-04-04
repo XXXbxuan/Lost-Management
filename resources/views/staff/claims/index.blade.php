@@ -48,34 +48,51 @@
                                         <div class="text-sm font-black text-indigo-600 uppercase italic group-hover:scale-105 transition-transform origin-left cursor-default">
                                             {{ $claim->foundItem->item_name ?? 'Item N/A' }}
                                         </div>
-                                        <div class="text-[10px] text-slate-400 font-bold mt-0.5">{{ $claim->foundItem->category ?? 'General' }}</div>
-                                        <div class="mt-2">
-                                            <span class="text-[9px] bg-slate-900 text-white px-2 py-0.5 rounded-lg font-mono font-bold tracking-tighter">REF: #{{ $claim->foundId }}</span>
+                                        <div class="text-[10px] text-slate-400 font-bold mt-0.5">
+                                            {{ $claim->foundItem->category ?? 'General' }}
+                                        </div>
+
+                                        <div class="mt-2 flex flex-col gap-1">
+                                            <span class="text-[9px] bg-slate-900 text-white px-2 py-0.5 rounded-lg font-mono font-bold tracking-tighter w-fit">
+                                                {{ $claim->receipt_no ?? ('REF-' . $claim->id) }}
+                                            </span>
                                         </div>
                                     </td>
                                     
                                     <td class="px-8 py-6">
                                         <div class="text-sm font-black text-slate-900">{{ $claim->claimerName }}</div>
                                         <div class="flex items-center text-[10px] text-rose-500 font-black mt-1 uppercase">
-                                            <span class="bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">ID: {{ $claim->claimerIcPassport }}</span>
+                                            <span class="bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
+                                                ID: {{ $claim->claimerIcPassport }}
+                                            </span>
                                         </div>
-                                        <div class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight italic">📞 {{ $claim->claimerPhone }}</div>
+                                        <div class="text-[10px] text-slate-400 font-bold mt-1 tracking-tight italic">
+                                            📞 {{ $claim->claimerPhone }}
+                                        </div>
+
+                                        @if($claim->handover_notes)
+                                            <div class="text-[10px] text-slate-500 mt-2 italic">
+                                                Notes: {{ $claim->handover_notes }}
+                                            </div>
+                                        @endif
                                     </td>
                                     
                                     <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-slate-500">
                                         <div class="flex items-center gap-3">
                                             <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-[10px]">
-                                                {{ strtoupper(substr($claim->handler->name ?? 'ST', 0, 2)) }}
+                                                {{ strtoupper(substr($claim->processed_by_name ?? $claim->handler->name ?? 'ST', 0, 2)) }}
                                             </div>
                                             <div>
-                                                <div class="text-slate-900 font-black">{{ $claim->handler->name ?? 'Staff' }}</div>
+                                                <div class="text-slate-900 font-black">
+                                                    {{ $claim->processed_by_name ?? $claim->handler->name ?? 'Staff' }}
+                                                </div>
                                                 <div class="text-[9px] uppercase tracking-tighter text-slate-400">Security Team</div>
                                             </div>
                                         </div>
                                     </td>
 
                                     <td class="px-8 py-6 whitespace-nowrap text-right">
-                                        <a href="{{ route('staff.claims.receipt', $claim->match_id ?? $claim->id) }}" 
+                                        <a href="{{ route('staff.claims.receipt', $claim->match_id) }}"
                                            data-receipt-link="true"
                                            target="_blank"
                                            class="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg active:scale-95">

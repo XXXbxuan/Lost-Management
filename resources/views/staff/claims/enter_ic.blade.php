@@ -36,7 +36,7 @@
                                 <label class="block text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">
                                     Full Name (As per IC / Passport) <span class="text-rose-500">*</span>
                                 </label>
-                                <input type="text" name="passenger_name_ic" required 
+                                <input type="text" name="claimerName" required 
                                        class="w-full bg-white border-2 border-slate-100 rounded-2xl px-6 py-4 font-bold text-lg focus:border-slate-900 focus:ring-0 transition-all shadow-sm"
                                        placeholder="Enter FULL LEGAL NAME">
                             </div>
@@ -46,7 +46,7 @@
                                 <label class="block text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">
                                     IC / Passport Number <span class="text-rose-500">*</span>
                                 </label>
-                                <input type="text" name="passenger_ic" required 
+                                <input type="text" name="claimerIcPassport" required 
                                        class="w-full bg-white border-2 border-slate-100 rounded-2xl px-6 py-4 font-mono font-bold text-lg focus:border-slate-900 focus:ring-0 transition-all shadow-sm"
                                        placeholder="e.g. 010203-14-5566">
                             </div>
@@ -76,8 +76,21 @@
                                 </div>
                                 <p class="text-[10px] text-slate-400 mt-4 text-center font-bold">Take a photo of the passenger holding the item as final legal proof.</p>
                             </div>
+                            
 
                         </div>
+                        <div class="mt-6">
+    <label for="handover_notes" class="block text-sm font-bold text-slate-700 mb-2">
+        Handover Notes
+    </label>
+    <textarea
+        name="handover_notes"
+        id="handover_notes"
+        rows="3"
+        class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+        placeholder="Optional notes"
+    >{{ old('handover_notes') }}</textarea>
+</div>
 
                         {{-- 結案按鈕 (附帶防呆確認) --}}
                         <div class="pt-6 border-t border-slate-100">

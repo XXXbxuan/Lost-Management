@@ -100,7 +100,7 @@ class LostItemController extends Controller
         $lostItem = LostItemReport::create($validated);
 
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
             'action_type' => 'CREATE_LOST_REPORT',
             'target_name' => "Report #{$lostItem->id}",
             'details'     => "Passenger: {$lostItem->passenger_name}, Item: {$lostItem->item_name} ({$lostItem->category})."
@@ -164,7 +164,7 @@ class LostItemController extends Controller
         $lostItem->update($validated);
 
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
             'action_type' => 'UPDATE_LOST_REPORT',
             'target_name' => "Report #{$lostItem->id}",
             'details'     => "Updated lost report for item: {$lostItem->item_name}."
@@ -410,7 +410,7 @@ class LostItemController extends Controller
         }
 
         AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? 'Staff',
+            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
             'action_type' => $action,
             'target_name' => "Lost #{$request->lost_id} vs Found #{$request->found_id}",
             'details'     => "Result: " . ucfirst($request->outcome) . ", Score: {$score}%. Note: {$request->notes}"

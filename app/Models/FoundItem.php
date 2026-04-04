@@ -46,10 +46,9 @@ class FoundItem extends Model
      * 確保 Timeline 的「By: Admin」能精準抓到登記人的名字。
      */
     public function staff()
-    {
-        // 註：請確認你的 Staff Model 名稱是 Staff 還是 User
-        return $this->belongsTo(User::class, 'staff_id');
-    }
+{
+    return $this->belongsTo(Staff::class, 'staff_id', 'staff_id');
+}
 
     /**
      * 🌟 5. 大一統關聯：鏈接至配對紀錄 (Match)

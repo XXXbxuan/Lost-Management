@@ -10,16 +10,19 @@ class Claim extends Model
     use HasFactory;
 
     protected $fillable = [
-        'match_id',          // 🌟 這是你加的：核心連結
-        'lostId', 
-        'foundId', 
-        'processedBy', 
-        'claimerName', 
-        'claimerIcPassport', 
-        'claimerPhone', 
-        'claimedAt',
-        'handover_photo' 
-    ];
+    'match_id',
+    'lostId',
+    'foundId',
+    'processedBy',
+    'processed_by_name',
+    'claimerName',
+    'claimerIcPassport',
+    'handover_photo',
+    'claimerPhone',
+    'claimedAt',
+    'receipt_no',
+    'handover_notes',
+];
 
     protected $casts = [
         'claimedAt' => 'datetime',
