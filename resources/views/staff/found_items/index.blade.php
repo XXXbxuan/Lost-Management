@@ -41,7 +41,7 @@
 
                     <div class="flex flex-wrap gap-2 mb-6 border-b pb-4">
                         @php
-                            $filters = ['All', 'Unclaimed', 'Matched', 'Claimed'];
+                            $filters = ['All', 'Unclaimed', 'Matched', 'Claimed', 'Removed'];
                         @endphp
 
                         @foreach($filters as $filter)

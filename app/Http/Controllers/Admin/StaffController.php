@@ -23,48 +23,42 @@ class StaffController extends Controller
         $this->staffService = $staffService;
     }
 
-    public function dashboard()
-    {
-        $totalFound = FoundItem::count();
-        $totalLost = LostItemReport::count(); 
-        $totalStaff = Staff::count();
+public function dashboard()
+{
+    $totalFound = \App\Models\FoundItem::count();
+    $totalLost = \App\Models\LostItemReport::count();
+    $totalStaff = \App\Models\Staff::count();
 
-        //Count how many Lost Reports are marked as 'Claimed'
-        $successfulRecoveries = LostItemReport::where('status', 'Claimed')->count();
-        
-        //Calculate percentage: (Claimed / Total Reports) * 100
-        $successRate = $totalLost > 0 ? round(($successfulRecoveries / $totalLost) * 100, 1) : 0;
+    $claimedCount = \App\Models\Claim::count();
+    $successRate = $totalLost > 0 ? round(($claimedCount / $totalLost) * 100, 1) : 0;
 
-        $categories = FoundItem::select('category', DB::raw('count(*) as total'))
-            ->groupBy('category')
-            ->pluck('total', 'category')
-            ->toArray();
+    $categoryStats = \App\Models\FoundItem::selectRaw('category, COUNT(*) as total')
+        ->groupBy('category')
+        ->pluck('total', 'category');
 
-        $categoryLabels = array_keys($categories);
-        $categoryData = array_values($categories);
+    $hotspotStats = \App\Models\FoundItem::selectRaw('found_location, COUNT(*) as total')
+        ->groupBy('found_location')
+        ->orderByDesc('total')
+        ->limit(5)
+        ->pluck('total', 'found_location');
 
-        $hotspots = FoundItem::select('found_location', DB::raw('count(*) as total'))
-            ->groupBy('found_location')
-            ->orderBy('total', 'desc') 
-            ->limit(5) 
-            ->pluck('total', 'found_location')
-            ->toArray();
+    $categoryLabels = $categoryStats->keys();
+    $categoryData = $categoryStats->values();
 
-        $hotspotLabels = array_keys($hotspots);
-        $hotspotData = array_values($hotspots);
+    $hotspotLabels = $hotspotStats->keys();
+    $hotspotData = $hotspotStats->values();
 
-        if (auth()->user()->role === 'Staff') {
-            return view('staff.dashboard', compact(
-                'totalFound', 'totalLost', 'totalStaff', 'successRate',
-                'categoryLabels', 'categoryData', 'hotspotLabels', 'hotspotData'    
-            ));
-        }
-
-        return view('admin.dashboard', compact(
-            'totalFound', 'totalLost', 'totalStaff', 'successRate',
-            'categoryLabels', 'categoryData', 'hotspotLabels', 'hotspotData'    
-        ));
-    }
+    return view('analytics_chart', compact(
+        'totalFound',
+        'totalLost',
+        'totalStaff',
+        'successRate',
+        'categoryLabels',
+        'categoryData',
+        'hotspotLabels',
+        'hotspotData'
+    ));
+}
 
     public function index(Request $request)
     {

@@ -27,18 +27,18 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        if ($user->role === 'Admin' || $user->role === 'Staff') {
-             return redirect()->route('staff.dashboard'); 
-        }
-
-        return redirect()->intended(route('dashboard'));
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'You have successfully logged in as ' . $user->role . '.');
     }
 
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/');
     }
 
@@ -57,7 +57,7 @@ class AuthenticatedSessionController extends Controller
             if (!$user) {
                 $user = User::create([
                     'username' => $googleUser->getName(),
-                    'name'     => $googleUser->getName(), 
+                    'name'     => $googleUser->getName(),
                     'email'    => $googleUser->getEmail(),
                     'password' => Hash::make(Str::random(16)),
                     'role'     => 'Passenger',
@@ -67,14 +67,14 @@ class AuthenticatedSessionController extends Controller
 
             Auth::login($user);
 
-            if ($user->role === 'Admin' || $user->role === 'Staff') {
-                return redirect()->route('staff.dashboard');
-            }
-
-            return redirect()->intended(route('dashboard'));
+            return redirect()
+                ->route('dashboard')
+                ->with('success', 'You have successfully logged in as ' . $user->role . '.');
 
         } catch (\Exception $e) {
-            return redirect()->route('login')->withErrors(['email' => 'Google Login Failed.']);
+            return redirect()->route('login')->withErrors([
+                'email' => 'Google Login Failed.',
+            ]);
         }
     }
 }

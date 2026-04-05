@@ -16,84 +16,84 @@ class OpenAIChatService
     }
 
     public function ask(string $message): string
-    {
-        $message = trim($message);
+{
+    $message = trim($message);
 
-        $searchAnswer = $this->recordSearchService->handle($message);
-        if ($searchAnswer) {
-            $this->storeHistory($message, $searchAnswer);
-            return $searchAnswer;
-        }
+    $lookupAnswer = $this->recordLookupService->handle($message);
+    if ($lookupAnswer) {
+        $this->storeHistory($message, $lookupAnswer);
+        return $lookupAnswer;
+    }
 
-        $lookupAnswer = $this->recordLookupService->handle($message);
-        if ($lookupAnswer) {
-            $this->storeHistory($message, $lookupAnswer);
-            return $lookupAnswer;
-        }
+    $searchAnswer = $this->recordSearchService->handle($message);
+    if ($searchAnswer) {
+        $this->storeHistory($message, $searchAnswer);
+        return $searchAnswer;
+    }
 
-        $ruleBasedAnswer = $this->tryRuleBasedAnswer($message);
-        if ($ruleBasedAnswer) {
-            $this->storeHistory($message, $ruleBasedAnswer);
-            return $ruleBasedAnswer;
-        }
+    $ruleBasedAnswer = $this->tryRuleBasedAnswer($message);
+    if ($ruleBasedAnswer) {
+        $this->storeHistory($message, $ruleBasedAnswer);
+        return $ruleBasedAnswer;
+    }
 
-        $apiKey = config('services.groq.api_key');
-        $model = config('services.groq.model', 'openai/gpt-oss-20b');
+    $apiKey = config('services.groq.api_key');
+    $model = config('services.groq.model', 'openai/gpt-oss-20b');
 
-        if (!$apiKey) {
-            throw new RuntimeException('Groq API key is not configured.');
-        }
+    if (!$apiKey) {
+        throw new RuntimeException('Groq API key is not configured.');
+    }
 
-        $history = Session::get('ai_chat_history', []);
-        $knowledge = config('alims_ai');
+    $history = Session::get('ai_chat_history', []);
+    $knowledge = config('alims_ai');
 
-        $systemPrompt = $this->buildSystemPrompt($knowledge);
+    $systemPrompt = $this->buildSystemPrompt($knowledge);
 
-        $messages = [
-            ['role' => 'system', 'content' => $systemPrompt],
+    $messages = [
+        ['role' => 'system', 'content' => $systemPrompt],
+    ];
+
+    foreach (array_slice($history, -6) as $item) {
+        $messages[] = [
+            'role' => $item['role'],
+            'content' => $item['content'],
         ];
+    }
 
-        foreach (array_slice($history, -6) as $item) {
-            $messages[] = [
-                'role' => $item['role'],
-                'content' => $item['content'],
-            ];
-        }
+    $messages[] = ['role' => 'user', 'content' => $message];
 
-        $messages[] = ['role' => 'user', 'content' => $message];
-
-        $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
-                'Content-Type' => 'application/json',
-            ])
-            ->timeout(30)
-            ->post('https://api.groq.com/openai/v1/chat/completions', [
-                'model' => $model,
-                'messages' => $messages,
-                'temperature' => 0.3,
-                'max_tokens' => 400,
-            ]);
-
-        Log::info('Groq raw response', [
-            'status' => $response->status(),
-            'body' => $response->body(),
+    $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey,
+            'Content-Type' => 'application/json',
+        ])
+        ->timeout(30)
+        ->post('https://api.groq.com/openai/v1/chat/completions', [
+            'model' => $model,
+            'messages' => $messages,
+            'temperature' => 0.3,
+            'max_tokens' => 400,
         ]);
 
-        if ($response->failed()) {
-            throw new RuntimeException('Groq request failed: ' . $response->body());
-        }
+    Log::info('Groq raw response', [
+        'status' => $response->status(),
+        'body' => $response->body(),
+    ]);
 
-        $reply = data_get(
-            $response->json(),
-            'choices.0.message.content',
-            'Sorry, no response was returned.'
-        );
-
-        $reply = $this->cleanReply($reply);
-        $this->storeHistory($message, $reply);
-
-        return $reply;
+    if ($response->failed()) {
+        throw new RuntimeException('Groq request failed: ' . $response->body());
     }
+
+    $reply = data_get(
+        $response->json(),
+        'choices.0.message.content',
+        'Sorry, no response was returned.'
+    );
+
+    $reply = $this->cleanReply($reply);
+    $this->storeHistory($message, $reply);
+
+    return $reply;
+}
 
     public function clearHistory(): void
     {

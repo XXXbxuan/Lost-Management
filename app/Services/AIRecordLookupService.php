@@ -12,21 +12,33 @@ class AIRecordLookupService
 {
     public function handle(string $message): ?string
     {
-        $text = trim($message);
+        $text = preg_replace('/\s+/', ' ', trim($message));
+        $text = trim($text, " \t\n\r\0\x0B.,!?");
 
-        if (preg_match('/(?:show\s+)?staff(?:\s*id)?\s*#?\s*([A-Za-z0-9_-]+)/i', $text, $m)) {
+        if ($this->matches($text, [
+            '/^(?:show|view|get|check)?\s*(?:staff|staff\s+summary|staff\s+member)(?:\s*(?:id|no\.?|number))?\s*#?\s*([A-Za-z0-9_-]+)$/i',
+        ], $m)) {
             return $this->getStaffSummary($m[1]);
         }
 
-        if (preg_match('/(?:show\s+)?lost(?:\s+report)?(?:\s*id)?\s*#?\s*(\d+)/i', $text, $m)) {
+        if ($this->matches($text, [
+            '/^(?:show|view|get|check)?\s*(?:lost\s+report|lost)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+            '/^(?:show|view|get|check)?\s*lost\s+report\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+        ], $m)) {
             return $this->getLostReportSummary((int) $m[1]);
         }
 
-        if (preg_match('/(?:show\s+)?found(?:\s+item)?(?:\s*id)?\s*#?\s*(\d+)/i', $text, $m)) {
+        if ($this->matches($text, [
+            '/^(?:show|view|get|check)?\s*(?:found\s+item|found)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+            '/^(?:show|view|get|check)?\s*found\s+item\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+        ], $m)) {
             return $this->getFoundItemSummary((int) $m[1]);
         }
 
-        if (preg_match('/(?:show\s+)?match(?:\s+record)?(?:\s*id)?\s*#?\s*(\d+)/i', $text, $m)) {
+        if ($this->matches($text, [
+            '/^(?:show|view|get|check)?\s*(?:match|match\s+record)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+            '/^(?:show|view|get|check)?\s*match\s+record\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+        ], $m)) {
             return $this->getMatchSummary((int) $m[1]);
         }
 
@@ -36,8 +48,10 @@ class AIRecordLookupService
     private function getStaffSummary(string $input): string
     {
         $staff = Staff::with('user')
-            ->where('staff_id', $input)
-            ->orWhere('staff_id', 'like', '%' . $input)
+            ->where(function ($query) use ($input) {
+                $query->where('staff_id', $input)
+                    ->orWhere('staff_id', 'like', '%' . $input . '%');
+            })
             ->first();
 
         if (!$staff) {
@@ -50,7 +64,7 @@ class AIRecordLookupService
         $lostCount = (clone $lostReports)->count();
         $foundCount = (clone $foundItems)->count();
 
-        $lostLost = (clone $lostReports)->where('status', 'LOST')->count();
+        $lostLost = (clone $lostReports)->whereIn('status', ['LOST', 'Lost'])->count();
         $lostMatched = (clone $lostReports)->whereIn('status', ['Matched', 'Reschedule Requested'])->count();
         $lostClaimed = (clone $lostReports)->where('status', 'Claimed')->count();
 
@@ -93,7 +107,13 @@ class AIRecordLookupService
             return "I could not find lost report ID {$id}.";
         }
 
-        $match = MatchRecord::where('lostId', $report->id)->latest('created_at')->first();
+        $match = MatchRecord::where('lostId', $report->id)
+            ->latest('created_at')
+            ->first();
+
+        $claim = $match
+            ? Claim::where('match_id', $match->id)->latest('created_at')->first()
+            : null;
 
         $staffName = $report->staff?->name ?? $report->staff?->user?->name ?? 'N/A';
 
@@ -114,7 +134,8 @@ class AIRecordLookupService
             "Status: {$report->status}\n" .
             "Created By: {$staffName}\n" .
             "Description: " . ($report->description ?: 'No description provided.') . "\n" .
-            "Match Record: " . ($match ? "#{$match->id}" : 'None');
+            "Match Record: " . ($match ? "#{$match->id}" : 'None') . "\n" .
+            "Claim Record: " . ($claim ? "#{$claim->id}" : 'None');
     }
 
     private function getFoundItemSummary(int $id): string
@@ -125,7 +146,13 @@ class AIRecordLookupService
             return "I could not find found item ID {$id}.";
         }
 
-        $match = MatchRecord::where('foundId', $item->id)->latest('created_at')->first();
+        $match = MatchRecord::where('foundId', $item->id)
+            ->latest('created_at')
+            ->first();
+
+        $claim = $match
+            ? Claim::where('match_id', $match->id)->latest('created_at')->first()
+            : null;
 
         $staffName = $item->staff?->name ?? $item->staff?->user?->name ?? 'N/A';
 
@@ -144,7 +171,8 @@ class AIRecordLookupService
             "Status: {$item->status}\n" .
             "Registered By: {$staffName}\n" .
             "Description: " . ($item->description ?: 'No description provided.') . "\n" .
-            "Match Record: " . ($match ? "#{$match->id}" : 'None');
+            "Match Record: " . ($match ? "#{$match->id}" : 'None') . "\n" .
+            "Claim Record: " . ($claim ? "#{$claim->id}" : 'None');
     }
 
     private function getMatchSummary(int $id): string
@@ -155,7 +183,7 @@ class AIRecordLookupService
             return "I could not find match record ID {$id}.";
         }
 
-        $claim = Claim::where('match_id', $match->id)->first();
+        $claim = Claim::where('match_id', $match->id)->latest('created_at')->first();
 
         return
             "Match Record Summary\n\n" .
@@ -171,5 +199,19 @@ class AIRecordLookupService
             "Confirmed: " . ($match->is_confirmed ? 'Yes' : 'No') . "\n" .
             "Claim Record: " . ($claim ? "#{$claim->id}" : 'None') . "\n" .
             "Notes: " . ($match->notes ?: 'No notes.');
+    }
+
+    private function matches(string $text, array $patterns, ?array &$matches = null): bool
+    {
+        foreach ($patterns as $pattern) {
+            $localMatches = [];
+
+            if (preg_match($pattern, $text, $localMatches)) {
+                $matches = $localMatches;
+                return true;
+            }
+        }
+
+        return false;
     }
 }
