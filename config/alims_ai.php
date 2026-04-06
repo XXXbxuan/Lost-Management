@@ -7,13 +7,13 @@ return [
     'modules' => [
         'Lost Reports' => 'Create passenger lost reports, review report details, view report history, edit or delete LOST reports, and perform candidate matching.',
         'Found Items' => 'Register found items, view item details, edit or delete unclaimed items, and review removed or claimed records.',
-        'Claim History' => 'Process claim appointments, confirmation, handover flow, and completed claim history.',
+        'Claims History' => 'Process claim appointments, confirmation, handover flow, and completed claim history.',
         'Inventory Map' => 'View storage slots, move items, remove items, mark service slots, and track inventory location history.',
         'AI Help Assistant' => 'Explain system statuses, workflows, and module navigation for staff users.',
         'Staff Management' => 'Admin manages staff accounts and staff records.',
         'Audit Logs' => 'Admin reviews recorded actions and history logs.',
         'Vouchers' => 'Manage voucher records and redemption-related functions.',
-        'Analytics Chart' => 'View dashboard charts and overview insights.',
+        'Analytics Overview' => 'View dashboard charts and overview insights.',
     ],
 
     'status_meanings' => [

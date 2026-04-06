@@ -3,77 +3,86 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\PasswordResetCode;
-use Illuminate\Support\Facades\Mail;
+use App\Http\Requests\Auth\ResetPasswordWithOtpRequest;
+use App\Http\Requests\Auth\SendOtpResetCodeRequest;
 use App\Mail\SendCodeResetPassword;
-use Illuminate\Support\Facades\Hash;
+use App\Models\PasswordResetCode;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\View\View;
+use Throwable;
 
 class OTPPasswordResetController extends Controller
 {
-    //Show the form to enter email
-    public function showLinkRequestForm()
+    public function showRequestForm(): View
     {
         return view('auth.forgot-password');
     }
 
-    //Send the code to email
-    public function sendResetCode(Request $request)
+    public function sendResetCode(SendOtpResetCodeRequest $request): RedirectResponse
     {
-        $request->validate(['email' => 'required|email|exists:users,email']);
+        $validated = $request->validated();
+        $email = $validated['email'];
 
-        PasswordResetCode::where('email', $request->email)->delete();
+        PasswordResetCode::where('email', $email)->delete();
 
-        $code = rand(100000, 999999);
+        $code = random_int(100000, 999999);
 
         PasswordResetCode::create([
-            'email' => $request->email,
+            'email' => $email,
             'code' => $code,
             'created_at' => Carbon::now(),
         ]);
 
         try {
-            Mail::to($request->email)->send(new SendCodeResetPassword($code));
-        } catch (\Exception $e) {
-            return back()->withErrors(['email' => 'Failed to send email: ' . $e->getMessage()]);
+            Mail::to($email)->send(new SendCodeResetPassword($code));
+        } catch (Throwable $e) {
+            return back()->withErrors([
+                'email' => 'Failed to send email.',
+            ]);
         }
 
-        return redirect()->route('password.verify', ['email' => $request->email]);
+        return redirect()->route('password.verify', ['email' => $email]);
     }
 
-    //Show the form to enter OTP and New Password
-    public function showResetForm(Request $request)
+    public function showVerificationForm(Request $request): View
     {
-        return view('auth.reset-password-otp', ['email' => $request->email]);
-    }
-
-    //Verify Code and Reset Password
-    public function resetPassword(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'code' => 'required|numeric',
-            'password' => 'required|min:8|confirmed',
+        return view('auth.reset-password-otp', [
+            'email' => $request->email,
         ]);
+    }
 
-        $resetCode = PasswordResetCode::where('email', $request->email)
-                                      ->where('code', $request->code)
-                                      ->first();
+    public function resetPassword(ResetPasswordWithOtpRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $resetCode = PasswordResetCode::where('email', $validated['email'])
+            ->where('code', $validated['code'])
+            ->first();
 
         if (!$resetCode) {
-            return back()->withErrors(['code' => 'Invalid code.']);
+            return back()->withErrors([
+                'code' => 'Invalid code.',
+            ]);
         }
-        
+
         if (Carbon::parse($resetCode->created_at)->addMinutes(15)->isPast()) {
-             return back()->withErrors(['code' => 'Code expired.']);
+            return back()->withErrors([
+                'code' => 'Code expired.',
+            ]);
         }
 
-        $user = User::where('email', $request->email)->first();
-        $user->update(['password' => Hash::make($request->password)]);
+        $user = User::where('email', $validated['email'])->first();
 
-        PasswordResetCode::where('email', $request->email)->delete();
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        PasswordResetCode::where('email', $validated['email'])->delete();
 
         return redirect()->route('login')->with('status', 'Password reset successfully! You can now login.');
     }

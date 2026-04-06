@@ -8,10 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 class Redemption extends Model
 {
     use HasFactory;
-    protected $guarded = [];
+
+    protected $fillable = [
+        'user_id',
+        'voucher_id',
+        'status',
+    ];
 
     public function voucher()
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

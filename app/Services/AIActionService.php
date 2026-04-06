@@ -9,7 +9,6 @@ class AIActionService
         $text = preg_replace('/\s+/', ' ', trim($message));
         $text = trim($text, " \t\n\r\0\x0B.,!?");
 
-        // Open Lost Reports module page
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?lost\s+reports?(?:\s+(?:module|page|list))?$/i',
         ])) {
@@ -20,14 +19,13 @@ class AIActionService
             );
         }
 
-        // Open specific Lost Report view modal
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?(?:view|details?|report|view\s+report)\s+(?:for\s+)?lost\s+reports?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?lost\s+reports?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?lost\s+report\s+details?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?view\s+report\s+lost\s+report\s*(?:id|no\.?|number)?\s*(\d+)$/i',
-        ], $m)) {
-            $id = (int) $m[1];
+        ], $matches)) {
+            $id = (int) $matches[1];
 
             return $this->openRecord(
                 'Open View Report',
@@ -36,13 +34,12 @@ class AIActionService
             );
         }
 
-        // Open candidate matching page for Lost Report
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?(?:candidate\s+match(?:ing)?|matching\s+page|match\s+page)\s+(?:for\s+)?lost\s+report\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+lost\s+report\s*(?:id|no\.?|number)?\s*(\d+)\s+(?:matching|match)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?matching\s+(?:for\s+)?lost\s+report\s*(?:id|no\.?|number)?\s*(\d+)$/i',
-        ], $m)) {
-            $id = (int) $m[1];
+        ], $matches)) {
+            $id = (int) $matches[1];
 
             return $this->openRecord(
                 'Open Candidate Match Page',
@@ -51,7 +48,6 @@ class AIActionService
             );
         }
 
-        // Open Found Items module page
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?found\s+items?(?:\s+(?:module|page|list))?$/i',
         ])) {
@@ -62,13 +58,12 @@ class AIActionService
             );
         }
 
-        // Open specific Found Item details modal
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?(?:view|details?|view\s+item)\s+(?:for\s+)?found\s+items?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?found\s+items?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?view\s+found\s+item\s*(?:id|no\.?|number)?\s*(\d+)$/i',
-        ], $m)) {
-            $id = (int) $m[1];
+        ], $matches)) {
+            $id = (int) $matches[1];
 
             return $this->openRecord(
                 'Open Found Item Details',
@@ -77,7 +72,6 @@ class AIActionService
             );
         }
 
-        // Open Claims History module page
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?claims?(?:\s+history)?(?:\s+(?:module|page|list))?$/i',
         ])) {
@@ -88,13 +82,12 @@ class AIActionService
             );
         }
 
-        // Open specific Claim receipt / details
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?(?:view\s+)?claim\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?claim\s+receipt\s*(?:for\s+)?(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?claim\s+details?\s*(?:for\s+)?(?:id|no\.?|number)?\s*(\d+)$/i',
-        ], $m)) {
-            $id = (int) $m[1];
+        ], $matches)) {
+            $id = (int) $matches[1];
 
             return $this->openRecord(
                 'Open Claim Receipt',
@@ -103,12 +96,11 @@ class AIActionService
             );
         }
 
-        // Open Match record page
         if ($this->matches($text, [
             '/^open(?:\s+up)?\s+(?:the\s+)?match(?:\s+record)?\s*(?:id|no\.?|number)?\s*(\d+)$/i',
             '/^open(?:\s+up)?\s+(?:the\s+)?match\s+details?\s*(?:for\s+)?(?:id|no\.?|number)?\s*(\d+)$/i',
-        ], $m)) {
-            $id = (int) $m[1];
+        ], $matches)) {
+            $id = (int) $matches[1];
 
             return $this->openRecord(
                 'Open Match Record',

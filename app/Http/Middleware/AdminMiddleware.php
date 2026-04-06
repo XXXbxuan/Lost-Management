@@ -10,9 +10,9 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // 如果用户没登录，或者登录了但角色不是 Admin
-        if (!auth()->check() || auth()->user()->role !== 'Admin') {
-            // 直接踢回首页，或者显示 403 禁止访问
+        $user = $request->user();
+
+        if (!$user || $user->role !== 'Admin') {
             abort(403, 'Unauthorized action.');
         }
 

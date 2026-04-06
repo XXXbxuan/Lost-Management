@@ -6,27 +6,62 @@
     <form method="POST" action="{{ route('password.update.otp') }}">
         @csrf
 
-        <input type="hidden" name="email" value="{{ request('email') }}">
+        <input type="hidden" name="email" value="{{ $email }}">
 
         <div class="mt-4">
-            <label class="block font-medium text-sm text-gray-700">Enter 6-Digit Code</label>
-            <input class="block mt-1 w-full border-gray-300 rounded-md shadow-sm text-2xl tracking-widest" type="text" name="code" required />
-            @error('code') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            <label for="code" class="block font-medium text-sm text-gray-700">
+                Enter 6-Digit Code
+            </label>
+            <input
+                id="code"
+                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm text-2xl tracking-widest"
+                type="text"
+                name="code"
+                value="{{ old('code') }}"
+                required
+                autocomplete="one-time-code"
+            >
+            @error('code')
+                <span class="text-red-500 text-sm">{{ $message }}</span>
+            @enderror
         </div>
 
         <div class="mt-4">
-            <label class="block font-medium text-sm text-gray-700">New Password</label>
-            <input class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" type="password" name="password" required />
-            @error('password') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            <label for="password" class="block font-medium text-sm text-gray-700">
+                New Password
+            </label>
+            <input
+                id="password"
+                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm"
+                type="password"
+                name="password"
+                required
+                autocomplete="new-password"
+            >
+            @error('password')
+                <span class="text-red-500 text-sm">{{ $message }}</span>
+            @enderror
         </div>
 
         <div class="mt-4">
-            <label class="block font-medium text-sm text-gray-700">Confirm Password</label>
-            <input class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" type="password" name="password_confirmation" required />
+            <label for="password_confirmation" class="block font-medium text-sm text-gray-700">
+                Confirm Password
+            </label>
+            <input
+                id="password_confirmation"
+                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm"
+                type="password"
+                name="password_confirmation"
+                required
+                autocomplete="new-password"
+            >
         </div>
 
         <div class="flex items-center justify-end mt-4">
-            <button type="submit" class="ml-3 bg-green-600 text-white px-4 py-2 rounded-md font-bold uppercase hover:bg-green-700">
+            <button
+                type="submit"
+                class="ml-3 bg-green-600 text-white px-4 py-2 rounded-md font-bold uppercase hover:bg-green-700"
+            >
                 {{ __('Reset Password') }}
             </button>
         </div>

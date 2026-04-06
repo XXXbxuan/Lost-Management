@@ -3,73 +3,45 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Staff;
-use App\Models\User;
+use App\Http\Requests\Admin\StoreStaffRequest;
+use App\Http\Requests\Admin\UpdateStaffRequest;
+use App\Models\AdminActionLog;
+use App\Models\Claim;
 use App\Models\FoundItem;
 use App\Models\LostItemReport;
-use Illuminate\Http\Request;
-use App\Http\Requests\StoreStaffRequest;
-use App\Http\Requests\UpdateStaffRequest;
+use App\Models\Staff;
 use App\Services\StaffService;
-use App\Models\AdminActionLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class StaffController extends Controller
 {
-    protected $staffService;
+    protected StaffService $staffService;
 
     public function __construct(StaffService $staffService)
     {
         $this->staffService = $staffService;
     }
 
-public function dashboard()
-{
-    $totalFound = \App\Models\FoundItem::count();
-    $totalLost = \App\Models\LostItemReport::count();
-    $totalStaff = \App\Models\Staff::count();
+    public function analyticsOverview()
+    {
+        $analytics = $this->buildAnalyticsOverviewData();
 
-    $claimedCount = \App\Models\Claim::count();
-    $successRate = $totalLost > 0 ? round(($claimedCount / $totalLost) * 100, 1) : 0;
-
-    $categoryStats = \App\Models\FoundItem::selectRaw('category, COUNT(*) as total')
-        ->groupBy('category')
-        ->pluck('total', 'category');
-
-    $hotspotStats = \App\Models\FoundItem::selectRaw('found_location, COUNT(*) as total')
-        ->groupBy('found_location')
-        ->orderByDesc('total')
-        ->limit(5)
-        ->pluck('total', 'found_location');
-
-    $categoryLabels = $categoryStats->keys();
-    $categoryData = $categoryStats->values();
-
-    $hotspotLabels = $hotspotStats->keys();
-    $hotspotData = $hotspotStats->values();
-
-    return view('analytics_chart', compact(
-        'totalFound',
-        'totalLost',
-        'totalStaff',
-        'successRate',
-        'categoryLabels',
-        'categoryData',
-        'hotspotLabels',
-        'hotspotData'
-    ));
-}
+        return view('analytics_overview', $analytics);
+    }
 
     public function index(Request $request)
     {
-        $search = $request->input('search');
+        $search = trim((string) $request->input('search'));
 
         $staffMembers = Staff::with('user')
-            ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                      ->orWhereHas('user', function ($q) use ($search) {
-                          $q->where('email', 'like', "%{$search}%");
-                      });
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('user', function ($userQuery) use ($search) {
+                            $userQuery->where('email', 'like', "%{$search}%");
+                        });
+                });
             })
             ->paginate(10);
 
@@ -84,22 +56,21 @@ public function dashboard()
     public function store(StoreStaffRequest $request)
     {
         $staff = $this->staffService->createStaff($request->validated());
-        $adminName = auth()->user()->name ?? 'System Admin';
 
-        AdminActionLog::create([
-            'admin_name'  => $adminName, 
-            'action_type' => 'CREATE_STAFF',
-            'target_name' => $staff->name,
-            'details'     => "Action: Registered New Staff, " .
-                             "Email: {$staff->user->email}, " .
-                             "Username: {$staff->user->username}, " .
-                             "Contact: {$staff->contact_number}, " .
-                             "Department: {$staff->department}, " .
-                             "Role: {$staff->user->role}."
-        ]);
+        $this->logAdminAction(
+            'CREATE_STAFF',
+            $staff->name,
+            "Action: Registered New Staff, " .
+            "Email: {$staff->user->email}, " .
+            "Username: {$staff->user->username}, " .
+            "Contact: {$staff->contact_number}, " .
+            "Department: {$staff->department}, " .
+            "Role: {$staff->user->role}."
+        );
 
-        return redirect()->route('admin.staff.index')
-                         ->with('success', 'New staff member created successfully.');
+        return redirect()
+            ->route('admin.staff.index')
+            ->with('success', 'New staff member created successfully.');
     }
 
     public function edit(Staff $staff)
@@ -109,100 +80,106 @@ public function dashboard()
 
     public function update(UpdateStaffRequest $request, Staff $staff)
     {
-        $adminName = auth()->user()->name ?? 'System Admin';
-
         if ($request->has('toggle_status')) {
             $oldStatus = $staff->status;
             $newStatus = $this->staffService->toggleStatus($staff);
-            
-            AdminActionLog::create([
-                'admin_name'  => $adminName,
-                'action_type' => $newStatus === 'Blocked' ? 'BLOCK_STAFF' : 'UNBLOCK_STAFF',
-                'target_name' => $staff->name,
-                'details'     => "Changed status from {$oldStatus} to {$newStatus}."
-            ]);
+
+            $this->logAdminAction(
+                $newStatus === 'Blocked' ? 'BLOCK_STAFF' : 'UNBLOCK_STAFF',
+                $staff->name,
+                "Changed status from {$oldStatus} to {$newStatus}."
+            );
 
             return back()->with('success', "Staff status updated to {$newStatus}.");
         }
 
         $this->staffService->updateStaff($staff, $request->validated());
 
-        AdminActionLog::create([
-            'admin_name'  => $adminName,
-            'action_type' => 'UPDATE_STAFF',
-            'target_name' => $staff->name,
-            'details'     => "Action: Updated Profile Details, " .
-                             "Email: {$staff->user->email}, " .
-                             "New Contact: {$staff->contact_number}, " .
-                             "New Dept: {$staff->department}."
-        ]);
+        $this->logAdminAction(
+            'UPDATE_STAFF',
+            $staff->name,
+            "Action: Updated Profile Details, " .
+            "Email: {$staff->user->email}, " .
+            "New Contact: {$staff->contact_number}, " .
+            "New Dept: {$staff->department}."
+        );
 
-        return redirect()->route('admin.staff.index')
-                         ->with('success', 'Staff details updated successfully.');
+        return redirect()
+            ->route('admin.staff.index')
+            ->with('success', 'Staff details updated successfully.');
     }
 
     public function destroy(Staff $staff)
     {
         $user = $staff->user;
-        $adminName = auth()->user()->name ?? 'System Admin';
 
-        $logInfo = "Deleted Staff Info: " .
-                   "Name: {$staff->name}, " .
-                   "Email: " . ($user->email ?? 'N/A') . ", " .
-                   "Username: " . ($user->username ?? 'N/A') . ", " .
-                   "Contact: {$staff->contact_number}, " .
-                   "Department: {$staff->department}.";
+        DB::transaction(function () use ($staff, $user) {
+            $logInfo = "Deleted Staff Info: " .
+                "Name: {$staff->name}, " .
+                "Email: " . ($user->email ?? 'N/A') . ", " .
+                "Username: " . ($user->username ?? 'N/A') . ", " .
+                "Contact: {$staff->contact_number}, " .
+                "Department: {$staff->department}.";
 
-        AdminActionLog::create([
-            'admin_name'  => $adminName,
-            'action_type' => 'DELETE',
-            'target_name' => $staff->name,
-            'details'     => $logInfo
-        ]);
+            $this->logAdminAction('DELETE', $staff->name, $logInfo);
 
-        if ($user) {
-            $user->delete(); 
-        }
-        $staff->delete();
+            if ($user) {
+                $user->delete();
+            }
 
-        return redirect()->route('admin.staff.index')
-                         ->with('success', 'Staff deleted. Email is now free to use. History saved to logs.');
+            $staff->delete();
+        });
+
+        return redirect()
+            ->route('admin.staff.index')
+            ->with('success', 'Staff deleted. Email is now free to use. History saved to logs.');
     }
 
-    public function exportFoundItems()
+        private function buildAnalyticsOverviewData(): array
     {
-        $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
-        
-        $items = \App\Models\FoundItem::orderBy('id', 'asc')->get();
+        $totalFound = FoundItem::count();
+        $totalLost = LostItemReport::count();
+        $totalStaff = Staff::count();
 
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+        $claimedCount = Claim::count();
+        $successRate = $totalLost > 0
+            ? round(($claimedCount / $totalLost) * 100, 1)
+            : 0;
+
+        $categoryStats = FoundItem::selectRaw('category, COUNT(*) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category');
+
+        $hotspotStats = FoundItem::selectRaw('found_location, COUNT(*) as total')
+            ->groupBy('found_location')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->pluck('total', 'found_location');
+
+        return [
+            'totalFound' => $totalFound,
+            'totalLost' => $totalLost,
+            'totalStaff' => $totalStaff,
+            'successRate' => $successRate,
+            'categoryLabels' => $categoryStats->keys(),
+            'categoryData' => $categoryStats->values(),
+            'hotspotLabels' => $hotspotStats->keys(),
+            'hotspotData' => $hotspotStats->values(),
         ];
+    }
 
-        $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
+    private function logAdminAction(string $actionType, string $targetName, string $details): void
+    {
+        AdminActionLog::create([
+            'admin_name'  => $this->getAdminName(),
+            'action_type' => $actionType,
+            'target_name' => $targetName,
+            'details'     => $details,
+        ]);
+    }
 
-        $callback = function() use($items, $columns) {
-            $file = fopen('php://output', 'w');
-            
-            fputcsv($file, $columns);
-
-            foreach ($items as $item) {
-                fputcsv($file, [
-                    $item->id,
-                    $item->item_name,
-                    $item->category,
-                    $item->found_location,
-                    $item->status,
-                    $item->created_at->format('Y-m-d H:i:s')
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+    private function getAdminName(): string
+    {
+        return auth()->user()->name ?? 'System Admin';
     }
 }

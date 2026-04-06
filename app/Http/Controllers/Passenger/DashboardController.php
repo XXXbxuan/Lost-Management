@@ -3,70 +3,77 @@
 namespace App\Http\Controllers\Passenger;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use App\Models\FoundItem;
-use App\Models\Voucher;     // 👈 Import Voucher Model
-use App\Models\Redemption;  // 👈 Import Redemption Model
-use App\Models\User;        // 👈 Import User Model
+use App\Models\Redemption;
+use App\Models\User;
+use App\Models\Voucher;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    //Show the "Report Lost Item" Form
-    public function showReportForm()
+    public function createLostReport(): View
     {
-        return view('passenger.lost-items.create');
+        return view('passenger.lost_items.create');
     }
 
-    //Show the "Browse Found Items" Page
-    public function showFoundItems()
+    public function browseFoundItems(): View
     {
         $foundItems = FoundItem::latest()->paginate(10);
 
-        return view('passenger.found-items.index', compact('foundItems'));
+        return view('passenger.found_items.index', compact('foundItems'));
     }
 
-    //Show Real Rewards Page
-    public function showRewards()
+    public function showRewardsCenter(): View
     {
         $vouchers = Voucher::all();
-        
+
         $myRedemptions = Redemption::where('user_id', Auth::id())
-                                   ->with('voucher')
-                                   ->latest()
-                                   ->get();
+            ->with('voucher')
+            ->latest()
+            ->get();
 
         return view('passenger.rewards', compact('vouchers', 'myRedemptions'));
     }
 
-    public function redeemVoucher(Request $request, $id)
+    public function redeemVoucher(int $id): RedirectResponse
     {
-        $user = Auth::user();
         $voucher = Voucher::findOrFail($id);
 
-        if ($user->points < $voucher->points) {
-            return redirect()->back()->with('error', 'Not enough points to redeem this voucher!');
-        }
+        return DB::transaction(function () use ($voucher) {
+            $user = User::findOrFail(Auth::id());
 
-        $user->points = $user->points - $voucher->points;
-        $user->save();
+            if ($user->points < $voucher->points) {
+                return back()->with('error', 'Not enough points to redeem this voucher!');
+            }
 
-        Redemption::create([
-            'user_id' => $user->id,
-            'voucher_id' => $voucher->id,
-        ]);
+            $user->points = $user->points - $voucher->points;
+            $user->save();
 
-        return redirect()->back()->with('success', 'Redemption Successful! You spent ' . $voucher->points . ' points.');
+            Redemption::create([
+                'user_id' => $user->id,
+                'voucher_id' => $voucher->id,
+            ]);
+
+            return back()->with('success', 'Redemption successful! You spent ' . $voucher->points . ' points.');
+        });
     }
 
-    public function useVoucher($id)
+    public function markVoucherAsUsed(int $id): RedirectResponse
     {
         $redemption = Redemption::where('id', $id)
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        $redemption->update(['status' => 'Used']); 
+        if ($redemption->status === 'Used') {
+            return back()->with('error', 'This voucher has already been used.');
+        }
+
+        $redemption->update([
+            'status' => 'Used',
+        ]);
 
         return back()->with('success', 'Voucher applied successfully! Enjoy your reward.');
     }

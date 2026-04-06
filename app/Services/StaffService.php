@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Staff;
-use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class StaffService
 {
-    public function createStaff(array $data)
+    public function createStaff(array $data): Staff
     {
         return DB::transaction(function () use ($data) {
             $user = User::create([
@@ -30,7 +30,7 @@ class StaffService
         });
     }
 
-    public function updateStaff(Staff $staff, array $data)
+    public function updateStaff(Staff $staff, array $data): Staff
     {
         return DB::transaction(function () use ($staff, $data) {
             $userData = [
@@ -52,14 +52,20 @@ class StaffService
                 'department' => $data['department'] ?? $staff->department,
             ]);
 
-            return $staff;
+            return $staff->fresh('user');
         });
     }
 
-    public function toggleStatus(Staff $staff)
+    public function toggleStatus(Staff $staff): string
     {
-        $newStatus = ($staff->status === 'Active') ? 'Blocked' : 'Active';
-        $staff->update(['status' => $newStatus]);
+        $newStatus = $staff->status === 'Active'
+            ? 'Blocked'
+            : 'Active';
+
+        $staff->update([
+            'status' => $newStatus,
+        ]);
+
         return $newStatus;
     }
 }

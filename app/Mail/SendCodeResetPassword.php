@@ -10,16 +10,19 @@ class SendCodeResetPassword extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $code;
+    public string $code;
 
-    public function __construct($code)
+    public function __construct(string $code)
     {
         $this->code = $code;
     }
 
-    public function build()
+    public function build(): self
     {
         return $this->subject('Your Password Reset Code')
-                    ->view('emails.reset_code');
+            ->view('emails.reset_code')
+            ->with([
+                'code' => $this->code,
+            ]);
     }
 }

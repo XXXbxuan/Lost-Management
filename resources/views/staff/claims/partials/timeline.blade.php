@@ -3,21 +3,18 @@
 
     $isScheduled = !is_null($match->appointment_at);
     $isConfirmed = (bool) $match->is_confirmed;
-    $isClaimed   = ($foundItem->status === 'Claimed');
+    $isClaimed = $foundItem->status === 'Claimed';
 
-    // Reject / Reschedule 狀態
     $isRescheduleRequested = ($match->status === 'Reschedule Requested') || !is_null($match->rejected_at);
 
     $suggest1 = $match->suggested_time_1 ? \Carbon\Carbon::parse($match->suggested_time_1) : null;
     $suggest2 = $match->suggested_time_2 ? \Carbon\Carbon::parse($match->suggested_time_2) : null;
 
-    // 顯示用
-    $foundAt  = optional($foundItem->created_at);
-    $matchAt  = optional($match->created_at);
+    $foundAt = optional($foundItem->created_at);
+    $matchAt = optional($match->created_at);
 
     $lostItem = $match->lostItem ?? null;
 
-    // Step 1 顯示文案與資料來源
     if ($mode === 'found_item') {
         $step1Title = 'Item Found';
         $step1Time = $foundAt?->format('M d, h:i A') ?? 'N/A';
@@ -43,42 +40,41 @@
     }
 @endphp
 
-<div class="w-full py-10 bg-white rounded-[3rem]">
-    <div class="flex items-start justify-between relative px-8">
+<div class="w-full rounded-[3rem] bg-white py-10">
+    <div class="relative flex items-start justify-between px-8">
+        <div class="absolute left-16 right-16 top-5 -z-10 h-1 bg-gray-200"></div>
 
-        {{-- 背景進度灰線 --}}
-        <div class="absolute top-5 left-16 right-16 h-1 bg-gray-200 -z-10"></div>
-
-        {{-- Step 1 --}}
-        <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+        <div class="group relative flex w-1/5 flex-col items-center">
+            <div class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-green-500 text-xl font-bold text-white shadow-md">
                 ✓
             </div>
             <h3 class="mt-2 text-sm font-bold text-gray-800">{{ $step1Title }}</h3>
-            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+            <div class="mt-1 space-y-1 text-center text-[10px] text-gray-500">
                 <p class="font-bold">{{ $step1Time }}</p>
-                <p class="truncate w-24 mx-auto text-indigo-500 font-medium">{{ $step1LocationLabel }}: {{ $step1Location }}</p>
-                <p class="text-indigo-600 font-black uppercase italic break-words">{{ $step1Name }}</p>
-                <p class="text-indigo-400 font-bold">By: {{ $step1By }}</p>
+                <p class="mx-auto w-24 truncate font-medium text-indigo-500">
+                    {{ $step1LocationLabel }}: {{ $step1Location }}
+                </p>
+                <p class="break-words text-indigo-600 font-black uppercase italic">
+                    {{ $step1Name }}
+                </p>
+                <p class="font-bold text-indigo-400">By: {{ $step1By }}</p>
             </div>
         </div>
 
-        {{-- Step 2: Matched --}}
-        <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+        <div class="group relative flex w-1/5 flex-col items-center">
+            <div class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-green-500 text-xl font-bold text-white shadow-md">
                 ✓
             </div>
             <h3 class="mt-2 text-sm font-bold text-gray-800">Matched</h3>
-            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+            <div class="mt-1 space-y-1 text-center text-[10px] text-gray-500">
                 <p class="font-bold">{{ $matchAt?->format('M d, h:i A') ?? 'N/A' }}</p>
-                <p class="text-green-600 font-bold">Score: {{ $match->similarityScore ?? '0' }}%</p>
-                <p class="text-indigo-400 font-bold italic">By: {{ $match->verifier?->name ?? 'Staff' }}</p>
+                <p class="font-bold text-green-600">Score: {{ $match->similarityScore ?? '0' }}%</p>
+                <p class="font-bold italic text-indigo-400">By: {{ $match->verifier?->name ?? 'Staff' }}</p>
             </div>
         </div>
 
-        {{-- Step 3: Appointment / Reschedule --}}
-        <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 {{ $isScheduled ? 'bg-green-500' : ($isRescheduleRequested ? 'bg-red-500' : 'bg-gray-300') }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+        <div class="group relative flex w-1/5 flex-col items-center">
+            <div class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white text-xl font-bold text-white shadow-md {{ $isScheduled ? 'bg-green-500' : ($isRescheduleRequested ? 'bg-red-500' : 'bg-gray-300') }}">
                 {{ $isScheduled ? '✓' : '3' }}
             </div>
 
@@ -86,29 +82,35 @@
                 {{ $isRescheduleRequested ? 'Reschedule' : 'Appointment' }}
             </h3>
 
-            <div class="mt-1 text-[10px] text-center space-y-1">
-                @if($isScheduled)
-                    <p class="font-bold text-green-600">{{ \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') }}</p>
-                    <p class="text-gray-500 italic">Loc: {{ $match->appointment_venue ?? 'Admin Office' }}</p>
-                    <p class="text-indigo-400 font-bold">Sent By: {{ $match->verifier?->name ?? 'Staff' }}</p>
-
-                @elseif($isRescheduleRequested)
-                    <span class="inline-block bg-red-100 text-red-700 px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-widest">
+            <div class="mt-1 space-y-1 text-center text-[10px]">
+                @if ($isScheduled)
+                    <p class="font-bold text-green-600">
+                        {{ \Carbon\Carbon::parse($match->appointment_at)->format('M d, h:i A') }}
+                    </p>
+                    <p class="italic text-gray-500">
+                        Loc: {{ $match->appointment_venue ?? 'Admin Office' }}
+                    </p>
+                    <p class="font-bold text-indigo-400">
+                        Sent By: {{ $match->verifier?->name ?? 'Staff' }}
+                    </p>
+                @elseif ($isRescheduleRequested)
+                    <span class="inline-block rounded-md bg-red-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-red-700">
                         REJECTED
                     </span>
 
-                    @if($suggest1)
+                    @if ($suggest1)
                         <p class="font-black text-slate-800">
                             S1: {{ $suggest1->format('M d, H:i') }}
                         </p>
                     @endif
-                    @if($suggest2)
+
+                    @if ($suggest2)
                         <p class="font-black text-slate-800">
                             S2: {{ $suggest2->format('M d, H:i') }}
                         </p>
                     @endif
 
-                    @if(!$suggest1 && !$suggest2)
+                    @if (!$suggest1 && !$suggest2)
                         <p class="italic text-gray-400">Awaiting passenger time...</p>
                     @endif
                 @else
@@ -117,36 +119,41 @@
             </div>
         </div>
 
-        {{-- Step 4: Confirmed --}}
-        <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 {{ $isConfirmed ? 'bg-green-500' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+        <div class="group relative flex w-1/5 flex-col items-center">
+            <div class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white text-xl font-bold text-white shadow-md {{ $isConfirmed ? 'bg-green-500' : 'bg-gray-300' }}">
                 {{ $isConfirmed ? '✓' : '4' }}
             </div>
-            <h3 class="mt-2 text-sm font-bold {{ $isConfirmed ? 'text-gray-800' : 'text-gray-400' }}">Confirmed</h3>
-            <div class="mt-1 text-[10px] text-center space-y-1">
-                @if($isConfirmed)
-                    <p class="font-bold text-green-600">{{ optional($match->confirmed_at)->format('M d, h:i A') ?? 'N/A' }}</p>
-                    <span class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-md font-black text-[8px] uppercase">Ready</span>
+            <h3 class="mt-2 text-sm font-bold {{ $isConfirmed ? 'text-gray-800' : 'text-gray-400' }}">
+                Confirmed
+            </h3>
+            <div class="mt-1 space-y-1 text-center text-[10px]">
+                @if ($isConfirmed)
+                    <p class="font-bold text-green-600">
+                        {{ optional($match->confirmed_at)->format('M d, h:i A') ?? 'N/A' }}
+                    </p>
+                    <span class="inline-block rounded-md bg-green-100 px-2 py-0.5 text-[8px] font-black uppercase text-green-700">
+                        Ready
+                    </span>
                 @else
                     <p class="italic text-gray-400">Waiting for user...</p>
                 @endif
             </div>
         </div>
 
-        {{-- Step 5: Handover --}}
-        <div class="flex flex-col items-center w-1/5 relative group">
-            <div class="w-10 h-10 {{ $isClaimed ? 'bg-black' : 'bg-gray-300' }} rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
+        <div class="group relative flex w-1/5 flex-col items-center">
+            <div class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white text-xl font-bold text-white shadow-md {{ $isClaimed ? 'bg-black' : 'bg-gray-300' }}">
                 {{ $isClaimed ? '🏁' : '5' }}
             </div>
-            <h3 class="mt-2 text-sm font-bold {{ $isClaimed ? 'text-gray-800' : 'text-gray-400' }}">Handover</h3>
-            <div class="mt-1 text-[10px] text-center space-y-1">
-                @if($isClaimed)
-                    <p class="text-green-700 font-black uppercase">Completed</p>
+            <h3 class="mt-2 text-sm font-bold {{ $isClaimed ? 'text-gray-800' : 'text-gray-400' }}">
+                Handover
+            </h3>
+            <div class="mt-1 space-y-1 text-center text-[10px]">
+                @if ($isClaimed)
+                    <p class="font-black uppercase text-green-700">Completed</p>
                 @else
-                    <p class="italic text-gray-400 font-bold uppercase text-[9px]">Awaiting Scan</p>
+                    <p class="text-[9px] font-bold uppercase italic text-gray-400">Awaiting Scan</p>
                 @endif
             </div>
         </div>
-
     </div>
 </div>

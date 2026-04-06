@@ -3,116 +3,97 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\LostItemReport;
-use Illuminate\Http\Request;
-use App\Models\FoundItem;
-use App\Models\MatchRecord;
+use App\Http\Requests\Staff\StoreLostItemReportRequest;
+use App\Http\Requests\Staff\StoreMatchVerificationRequest;
+use App\Http\Requests\Staff\UpdateLostItemReportRequest;
 use App\Models\AdminActionLog;
-use Illuminate\Support\Facades\DB;
+use App\Models\FoundItem;
+use App\Models\LostItemReport;
+use App\Models\MatchRecord;
 use App\Models\Staff;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
+use Illuminate\View\View;
 
 class LostItemController extends Controller
 {
-    public function index(Request $request)
-{
-    $status = $request->query('status', 'All');
-    $openReportId = $request->query('open_report');
+    public function index(Request $request): View
+    {
+        $status = $request->query('status', 'All');
+        $openReportId = $request->query('open_report');
 
-    $query = \App\Models\LostItemReport::query()->latest();
+        $query = LostItemReport::query()->latest();
+        $perPage = 10;
 
-    if ($status !== 'All') {
-        $query->where('status', $status);
-    }
-
-    $perPage = 10;
-
-    if ($openReportId) {
-        $orderedIds = (clone $query)->pluck('id')->values();
-
-        $position = $orderedIds->search(function ($id) use ($openReportId) {
-            return (string) $id === (string) $openReportId;
-        });
-
-        if ($position !== false) {
-            $targetPage = (int) floor($position / $perPage) + 1;
-
-            \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
-                return $targetPage;
-            });
+        if ($status !== 'All') {
+            $query->where('status', $status);
         }
+
+        if ($openReportId) {
+            $orderedIds = (clone $query)->pluck('id')->values();
+
+            $position = $orderedIds->search(function ($id) use ($openReportId) {
+                return (string) $id === (string) $openReportId;
+            });
+
+            if ($position !== false) {
+                $targetPage = (int) floor($position / $perPage) + 1;
+
+                Paginator::currentPageResolver(function () use ($targetPage) {
+                    return $targetPage;
+                });
+            }
+        }
+
+        $lostItems = $query->paginate($perPage)->appends($request->query());
+
+        return view('staff.lost_reports.index', compact('lostItems', 'status', 'openReportId'));
     }
 
-    $lostItems = $query->paginate($perPage)->appends($request->query());
-
-    return view('staff.lost_reports.index', compact('lostItems', 'status', 'openReportId'));
-}
-    public function create()
+    public function create(): View
     {
         return view('staff.lost_reports.create');
     }
 
-    public function store(Request $request)
+    public function store(StoreLostItemReportRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'passenger_name'   => 'required|string|max:255',
-            'passenger_email'  => 'required|email|max:255',
-            'passenger_phone'  => 'required|string|max:20',
-            'item_name'        => 'required|string|max:255',
-            'category'         => 'required|string',
-            'brand'            => 'nullable|string|max:255',
-            'serial_number'    => 'nullable|string|max:255',
-            'color'            => 'required|string|max:255',
-            'sub_colors'       => 'nullable|array',
-            'sub_colors.*'     => 'string|max:50',
-            'image'            => 'nullable|image|max:2048',
-            'lost_location'    => 'required|string|max:255',
-            'flight_number'    => 'nullable|string|max:50',
-            'lost_time'        => 'required|date',
-            'description'      => 'nullable|string',
-        ]);
-
-        if ($request->filled('sub_colors') && is_array($request->input('sub_colors'))) {
-            $subColors = array_filter(array_map('trim', $request->input('sub_colors')));
-
-            if (($validated['color'] ?? '') === 'Multi-color' && count($subColors) > 0) {
-                $validated['color'] = 'Multi-color (' . implode(', ', $subColors) . ')';
-            }
-        }
+        $validated = $this->normalizeMultiColor($request->validated());
 
         if ($request->hasFile('image')) {
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
         }
 
         if (auth()->check()) {
-        $staff = Staff::where('user_id', auth()->id())->first();
+            $staff = Staff::where('user_id', auth()->id())->first();
 
-        if (!$staff) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors([
-                    'staff_id' => 'No staff record found for the current logged in user.'
-                ]);
+            if (!$staff) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'staff_id' => 'No staff record found for the current logged-in user.',
+                    ]);
+            }
+
+            $validated['staff_id'] = $staff->staff_id;
         }
-
-        $validated['staff_id'] = $staff->staff_id;
-    }
 
         $lostItem = LostItemReport::create($validated);
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
-            'action_type' => 'CREATE_LOST_REPORT',
-            'target_name' => "Report #{$lostItem->id}",
-            'details'     => "Passenger: {$lostItem->passenger_name}, Item: {$lostItem->item_name} ({$lostItem->category})."
-        ]);
+        $this->writeActionLog(
+            'CREATE_LOST_REPORT',
+            "Report #{$lostItem->id}",
+            "Passenger: {$lostItem->passenger_name}, Item: {$lostItem->item_name} ({$lostItem->category})."
+        );
 
-        return redirect()->route('dashboard')
-            ->with('success', '✅ Lost Item Report Submitted Successfully! System will start matching.');
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'Lost item report submitted successfully. The system will start matching.');
     }
 
-    public function edit(LostItemReport $lostItem)
+    public function edit(LostItemReport $lostItem): RedirectResponse|View
     {
-        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+        if (!$this->isEditableLostReport($lostItem)) {
             return redirect()
                 ->route('staff.lost-items.index')
                 ->with('error', 'Only unsolved lost reports can be edited.');
@@ -121,39 +102,15 @@ class LostItemController extends Controller
         return view('staff.lost_reports.edit', compact('lostItem'));
     }
 
-    public function update(Request $request, LostItemReport $lostItem)
+    public function update(UpdateLostItemReportRequest $request, LostItemReport $lostItem): RedirectResponse
     {
-        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+        if (!$this->isEditableLostReport($lostItem)) {
             return redirect()
                 ->route('staff.lost-items.index')
                 ->with('error', 'Only unsolved lost reports can be updated.');
         }
 
-        $validated = $request->validate([
-            'passenger_name'   => 'required|string|max:255',
-            'passenger_email'  => 'required|email|max:255',
-            'passenger_phone'  => 'required|string|max:20',
-            'item_name'        => 'required|string|max:255',
-            'category'         => 'required|string',
-            'brand'            => 'nullable|string|max:255',
-            'serial_number'    => 'nullable|string|max:255',
-            'color'            => 'required|string|max:255',
-            'sub_colors'       => 'nullable|array',
-            'sub_colors.*'     => 'string|max:50',
-            'image'            => 'nullable|image|max:2048',
-            'lost_location'    => 'required|string|max:255',
-            'flight_number'    => 'nullable|string|max:50',
-            'lost_time'        => 'required|date',
-            'description'      => 'nullable|string',
-        ]);
-
-        if ($request->filled('sub_colors') && is_array($request->input('sub_colors'))) {
-            $subColors = array_filter(array_map('trim', $request->input('sub_colors')));
-
-            if (($validated['color'] ?? '') === 'Multi-color' && count($subColors) > 0) {
-                $validated['color'] = 'Multi-color (' . implode(', ', $subColors) . ')';
-            }
-        }
+        $validated = $this->normalizeMultiColor($request->validated());
 
         if ($request->hasFile('image')) {
             $validated['image_path'] = $request->file('image')->store('lost_reports', 'public');
@@ -163,32 +120,30 @@ class LostItemController extends Controller
 
         $lostItem->update($validated);
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
-            'action_type' => 'UPDATE_LOST_REPORT',
-            'target_name' => "Report #{$lostItem->id}",
-            'details'     => "Updated lost report for item: {$lostItem->item_name}."
-        ]);
+        $this->writeActionLog(
+            'UPDATE_LOST_REPORT',
+            "Report #{$lostItem->id}",
+            "Updated lost report for item: {$lostItem->item_name}."
+        );
 
         return redirect()
             ->route('staff.lost-items.index')
             ->with('success', 'Lost report updated successfully.');
     }
 
-    public function destroy(LostItemReport $lostItem)
+    public function destroy(LostItemReport $lostItem): RedirectResponse
     {
-        if (!in_array($lostItem->status, ['LOST', 'Lost'])) {
+        if (!$this->isEditableLostReport($lostItem)) {
             return redirect()
                 ->route('staff.lost-items.index')
                 ->with('error', 'Only unsolved lost reports can be deleted.');
         }
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? 'Staff',
-            'action_type' => 'DELETE_LOST_REPORT',
-            'target_name' => "Report #{$lostItem->id}",
-            'details'     => "Deleted lost report for item: {$lostItem->item_name}."
-        ]);
+        $this->writeActionLog(
+            'DELETE_LOST_REPORT',
+            "Report #{$lostItem->id}",
+            "Deleted lost report for item: {$lostItem->item_name}."
+        );
 
         $lostItem->delete();
 
@@ -197,7 +152,7 @@ class LostItemController extends Controller
             ->with('success', 'Lost report deleted successfully.');
     }
 
-    public function show($id, Request $request)
+    public function show(int $id, Request $request): View
     {
         $lostItem = LostItemReport::findOrFail($id);
 
@@ -211,21 +166,34 @@ class LostItemController extends Controller
         $isManualSearch = $request->has('search');
 
         if ($isManualSearch) {
-            if ($request->filled('category')) $query->where('category', $request->input('category'));
-            if ($request->filled('location')) $query->where('found_location', $request->input('location'));
-            if ($request->filled('date_from')) $query->whereDate('found_time', '>=', $request->input('date_from'));
-            if ($request->filled('date_to')) $query->whereDate('found_time', '<=', $request->input('date_to'));
+            if ($request->filled('category')) {
+                $query->where('category', $request->input('category'));
+            }
+
+            if ($request->filled('location')) {
+                $query->where('found_location', $request->input('location'));
+            }
+
+            if ($request->filled('date_from')) {
+                $query->whereDate('found_time', '>=', $request->input('date_from'));
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('found_time', '<=', $request->input('date_to'));
+            }
 
             if ($request->filled('keyword')) {
                 $search = $request->input('keyword');
+
                 $query->where(function ($q) use ($search) {
                     $q->where('item_name', 'LIKE', "%{$search}%")
-                      ->orWhere('description', 'LIKE', "%{$search}%")
-                      ->orWhere('color', 'LIKE', "%{$search}%");
+                        ->orWhere('description', 'LIKE', "%{$search}%")
+                        ->orWhere('color', 'LIKE', "%{$search}%");
                 });
             }
         } else {
             $query->where('category', $lostItem->category);
+
             if ($lostItem->lost_time) {
                 $query->whereDate('found_time', '>=', $lostItem->lost_time->format('Y-m-d'));
             }
@@ -247,116 +215,7 @@ class LostItemController extends Controller
             ->get();
 
         foreach ($candidateMatches as $item) {
-            $score = 0;
-
-            if (($item->category ?? '') === ($lostItem->category ?? '')) {
-                $score += 30;
-            }
-
-            $foundColorRaw = strtolower((string) ($item->color ?? ''));
-            $lostColorRaw  = strtolower((string) ($lostItem->color ?? ''));
-
-            $foundColors = [];
-            if (str_contains($foundColorRaw, 'multi-color')) {
-                if (preg_match('/\((.*?)\)/', $foundColorRaw, $m)) {
-                    $foundColors = array_filter(array_map('trim', explode(',', $m[1])));
-                }
-            } else {
-                if ($foundColorRaw !== '') $foundColors = [trim($foundColorRaw)];
-            }
-
-            $lostColors = [];
-            if (str_contains($lostColorRaw, 'multi-color')) {
-                if (preg_match('/\((.*?)\)/', $lostColorRaw, $m2)) {
-                    $lostColors = array_filter(array_map('trim', explode(',', $m2[1])));
-                }
-            } else {
-                if ($lostColorRaw !== '') $lostColors = [trim($lostColorRaw)];
-            }
-
-            $foundColors = array_values(array_unique($foundColors));
-            $lostColors  = array_values(array_unique($lostColors));
-
-            $matchedCount = 0;
-            foreach ($foundColors as $fc) {
-                foreach ($lostColors as $lc) {
-                    if ($fc !== '' && $lc !== '' && str_contains($fc, $lc)) {
-                        $matchedCount++;
-                        break;
-                    }
-                }
-            }
-
-            if (count($foundColors) > 0 && $matchedCount > 0) {
-                $perColor = 25 / count($foundColors);
-                $score += min(25, $matchedCount * $perColor);
-            }
-
-            if (($item->found_location ?? '') === ($lostItem->lost_location ?? '')) {
-                $score += 15;
-            }
-
-            $foundBrand = strtoupper((string) ($item->brand ?? ''));
-            $lostBrand  = strtoupper((string) ($lostItem->brand ?? ''));
-
-            $foundBrandNorm = str_replace([' ', '-'], '', $foundBrand);
-            $lostBrandNorm  = str_replace([' ', '-'], '', $lostBrand);
-
-            if ($foundBrandNorm !== '' && $lostBrandNorm !== '') {
-                if ($foundBrandNorm === $lostBrandNorm) {
-                    $score += 10;
-                } else if (str_contains($foundBrandNorm, $lostBrandNorm) || str_contains($lostBrandNorm, $foundBrandNorm)) {
-                    $score += 5;
-                }
-            }
-
-            $foundSerial = strtoupper((string) ($item->serial_number ?? ''));
-            $lostSerial  = strtoupper((string) ($lostItem->serial_number ?? ''));
-
-            $foundSerialNorm = str_replace([' ', '-'], '', $foundSerial);
-            $lostSerialNorm  = str_replace([' ', '-'], '', $lostSerial);
-
-            if ($foundSerialNorm !== '' && $lostSerialNorm !== '') {
-                if ($foundSerialNorm === $lostSerialNorm) {
-                    $score += 20;
-                } else if (str_contains($foundSerialNorm, $lostSerialNorm) || str_contains($lostSerialNorm, $foundSerialNorm)) {
-                    $score += 10;
-                }
-            }
-
-            if ($item->found_time && $lostItem->lost_time) {
-                $daysDiff = abs((int) $item->found_time->copy()->startOfDay()
-                    ->diffInDays($lostItem->lost_time->copy()->startOfDay()));
-
-                if ($daysDiff == 0) $score += 10;
-                else if ($daysDiff <= 3) $score += 7;
-                else if ($daysDiff <= 7) $score += 5;
-                else $score += 3;
-            }
-
-            if (($item->found_location ?? '') === 'Airplane Cabin' && ($lostItem->lost_location ?? '') === 'Airplane Cabin') {
-                $foundFlight = strtoupper((string) ($item->flight_number ?? ''));
-                $lostFlight  = strtoupper((string) ($lostItem->flight_number ?? ''));
-
-                $foundFlightNorm = str_replace([' ', '-'], '', $foundFlight);
-                $lostFlightNorm  = str_replace([' ', '-'], '', $lostFlight);
-
-                if ($foundFlightNorm !== '' && $lostFlightNorm !== '') {
-                    if ($foundFlightNorm === $lostFlightNorm) {
-                        $score += 10;
-                    } else if (str_contains($foundFlightNorm, $lostFlightNorm) || str_contains($lostFlightNorm, $foundFlightNorm)) {
-                        $score += 5;
-                    }
-                }
-            }
-
-            $textRel = (float) ($item->text_relevance ?? 0);
-            if ($textRel >= 2.0) $score += 15;
-            else if ($textRel >= 1.0) $score += 12;
-            else if ($textRel >= 0.5) $score += 8;
-            else if ($textRel >= 0.2) $score += 4;
-
-            $item->similarity_score = min($score, 100);
+            $item->similarity_score = $this->calculateSimilarityScore($lostItem, $item);
         }
 
         if (!$isManualSearch) {
@@ -369,7 +228,7 @@ class LostItemController extends Controller
         return view('staff.lost_reports.show', compact('lostItem', 'candidateMatches', 'rejectedItems'));
     }
 
-    public function verify($lost_id, $found_id, Request $request)
+    public function showMatchVerification(int $lost_id, int $found_id, Request $request): View
     {
         $lostItem = LostItemReport::findOrFail($lost_id);
         $foundItem = FoundItem::findOrFail($found_id);
@@ -378,86 +237,86 @@ class LostItemController extends Controller
         return view('staff.lost_reports.verify', compact('lostItem', 'foundItem', 'score'));
     }
 
-    public function storeMatch(Request $request)
+    public function storeMatchVerification(StoreMatchVerificationRequest $request): RedirectResponse
     {
-        $request->validate([
-            'lost_id'          => 'required',
-            'found_id'         => 'required',
-            'outcome'          => 'required|in:matched,not_matched',
-            'notes'            => 'required|string|max:500',
-            'similarity_score' => 'nullable',
-            'return_url'       => 'nullable|string',
-            'source'           => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
-        $score = $request->similarity_score ?? 0;
-        $status = $request->outcome === 'matched' ? 'Verified' : 'Rejected';
+        $score = $validated['similarity_score'] ?? 0;
+        $status = $validated['outcome'] === 'matched' ? 'Verified' : 'Rejected';
 
         MatchRecord::updateOrCreate(
-            ['lostId' => $request->lost_id, 'foundId' => $request->found_id],
             [
-                'notes'           => $request->notes,
-                'status'          => $status,
-                'verifiedBy'      => auth()->id(),
-                'verifiedAt'      => now(),
+                'lostId' => $validated['lost_id'],
+                'foundId' => $validated['found_id'],
+            ],
+            [
+                'notes' => $validated['notes'],
+                'status' => $status,
+                'verifiedBy' => auth()->id(),
+                'verifiedAt' => now(),
                 'similarityScore' => $score,
             ]
         );
 
-        $action = $request->outcome === 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
-        if ($request->outcome === 'not_matched' && $request->input('source') === 'reject_claim') {
+        $action = $validated['outcome'] === 'matched' ? 'VERIFY_MATCH' : 'REJECT_MATCH';
+
+        if ($validated['outcome'] === 'not_matched' && ($validated['source'] ?? null) === 'reject_claim') {
             $action = 'REJECT_CLAIM';
         }
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?? auth()->user()->username ?? 'Staff',
-            'action_type' => $action,
-            'target_name' => "Lost #{$request->lost_id} vs Found #{$request->found_id}",
-            'details'     => "Result: " . ucfirst($request->outcome) . ", Score: {$score}%. Note: {$request->notes}"
-        ]);
+        $this->writeActionLog(
+            $action,
+            "Lost #{$validated['lost_id']} vs Found #{$validated['found_id']}",
+            "Result: " . ucfirst($validated['outcome']) . ", Score: {$score}%. Note: {$validated['notes']}"
+        );
 
-        if ($request->outcome === 'matched') {
-            LostItemReport::where('id', $request->lost_id)->update(['status' => 'Matched']);
-            FoundItem::where('id', $request->found_id)->update(['status' => 'Matched']);
+        if ($validated['outcome'] === 'matched') {
+            LostItemReport::where('id', $validated['lost_id'])->update(['status' => 'Matched']);
+            FoundItem::where('id', $validated['found_id'])->update(['status' => 'Matched']);
         } else {
-            LostItemReport::where('id', $request->lost_id)->update(['status' => 'LOST']);
-            $found = FoundItem::find($request->found_id);
+            LostItemReport::where('id', $validated['lost_id'])->update(['status' => 'LOST']);
+
+            $found = FoundItem::find($validated['found_id']);
             if ($found && $found->status === 'Matched') {
                 $found->update(['status' => 'Unclaimed']);
             }
         }
 
-        if (!empty($request->return_url)) {
-            return redirect()->to($request->return_url)->with('success', 'Verification record saved.');
+        if (!empty($validated['return_url'])) {
+            return redirect()->to($validated['return_url'])->with('success', 'Verification record saved.');
         }
 
-        return redirect()->route('staff.lost-items.index')->with('success', 'Verification record saved.');
+        return redirect()
+            ->route('staff.lost-items.index')
+            ->with('success', 'Verification record saved.');
     }
 
-    public function unmatch($lostId)
+    public function undoMatch(int $lostId): RedirectResponse
     {
         $match = MatchRecord::where('lostId', $lostId)->first();
 
         if ($match) {
-            AdminActionLog::create([
-                'admin_name'  => auth()->user()->name ?? 'Staff',
-                'action_type' => 'UNDO_MATCH',
-                'target_name' => "Match Record #{$match->id}",
-                'details'     => "Action: Unlinked Lost Item #{$match->lostId} from Found Item #{$match->foundId}. Status reset."
-            ]);
+            $this->writeActionLog(
+                'UNDO_MATCH',
+                "Match Record #{$match->id}",
+                "Action: Unlinked Lost Item #{$match->lostId} from Found Item #{$match->foundId}. Status reset."
+            );
 
             FoundItem::where('id', $match->foundId)->update(['status' => 'Unclaimed']);
             LostItemReport::where('id', $lostId)->update(['status' => 'LOST']);
             $match->delete();
         }
 
-        return redirect()->back()->with('success', 'Match has been cancelled.');
+        return back()->with('success', 'Match has been cancelled.');
     }
 
-    public function getTimelineHtml($id)
+    public function renderTimelineHtml(int $id): string
     {
         $lostItem = LostItemReport::findOrFail($id);
-        $match = MatchRecord::where('lostId', $lostItem->id)->where('status', 'Verified')->first();
+
+        $match = MatchRecord::where('lostId', $lostItem->id)
+            ->where('status', 'Verified')
+            ->first();
 
         if (!$match || !$match->foundItem) {
             return '<div class="p-6 text-center text-gray-500">No verified timeline data available.</div>';
@@ -466,5 +325,195 @@ class LostItemController extends Controller
         $foundItem = $match->foundItem;
 
         return view('staff.claims.partials.timeline', compact('foundItem', 'match'))->render();
+    }
+
+    private function isEditableLostReport(LostItemReport $lostItem): bool
+    {
+        return in_array($lostItem->status, ['LOST', 'Lost']);
+    }
+
+    private function normalizeMultiColor(array $validated): array
+    {
+        if (!empty($validated['sub_colors']) && is_array($validated['sub_colors'])) {
+            $subColors = array_filter(array_map('trim', $validated['sub_colors']));
+
+            if (($validated['color'] ?? '') === 'Multi-color' && count($subColors) > 0) {
+                $validated['color'] = 'Multi-color (' . implode(', ', $subColors) . ')';
+            }
+        }
+
+        return $validated;
+    }
+
+    private function calculateSimilarityScore(LostItemReport $lostItem, FoundItem $foundItem): float
+    {
+        $score = 0;
+
+        if (($foundItem->category ?? '') === ($lostItem->category ?? '')) {
+            $score += 30;
+        }
+
+        $foundColors = $this->extractColors((string) ($foundItem->color ?? ''));
+        $lostColors = $this->extractColors((string) ($lostItem->color ?? ''));
+
+        $matchedCount = 0;
+        foreach ($foundColors as $foundColor) {
+            foreach ($lostColors as $lostColor) {
+                if ($foundColor !== '' && $lostColor !== '' && str_contains($foundColor, $lostColor)) {
+                    $matchedCount++;
+                    break;
+                }
+            }
+        }
+
+        if (count($foundColors) > 0 && $matchedCount > 0) {
+            $perColor = 25 / count($foundColors);
+            $score += min(25, $matchedCount * $perColor);
+        }
+
+        if (($foundItem->found_location ?? '') === ($lostItem->lost_location ?? '')) {
+            $score += 15;
+        }
+
+        $score += $this->calculateBrandScore(
+            (string) ($foundItem->brand ?? ''),
+            (string) ($lostItem->brand ?? '')
+        );
+
+        $score += $this->calculateSerialScore(
+            (string) ($foundItem->serial_number ?? ''),
+            (string) ($lostItem->serial_number ?? '')
+        );
+
+        if ($foundItem->found_time && $lostItem->lost_time) {
+            $daysDiff = abs((int) $foundItem->found_time->copy()->startOfDay()
+                ->diffInDays($lostItem->lost_time->copy()->startOfDay()));
+
+            if ($daysDiff === 0) {
+                $score += 10;
+            } elseif ($daysDiff <= 3) {
+                $score += 7;
+            } elseif ($daysDiff <= 7) {
+                $score += 5;
+            } else {
+                $score += 3;
+            }
+        }
+
+        if (($foundItem->found_location ?? '') === 'Airplane Cabin' && ($lostItem->lost_location ?? '') === 'Airplane Cabin') {
+            $score += $this->calculateFlightScore(
+                (string) ($foundItem->flight_number ?? ''),
+                (string) ($lostItem->flight_number ?? '')
+            );
+        }
+
+        $textRelevance = (float) ($foundItem->text_relevance ?? 0);
+
+        if ($textRelevance >= 2.0) {
+            $score += 15;
+        } elseif ($textRelevance >= 1.0) {
+            $score += 12;
+        } elseif ($textRelevance >= 0.5) {
+            $score += 8;
+        } elseif ($textRelevance >= 0.2) {
+            $score += 4;
+        }
+
+        return min($score, 100);
+    }
+
+    private function extractColors(string $colorRaw): array
+    {
+        $normalized = strtolower($colorRaw);
+        $colors = [];
+
+        if (str_contains($normalized, 'multi-color')) {
+            if (preg_match('/\((.*?)\)/', $normalized, $matches)) {
+                $colors = array_filter(array_map('trim', explode(',', $matches[1])));
+            }
+        } else {
+            if ($normalized !== '') {
+                $colors = [trim($normalized)];
+            }
+        }
+
+        return array_values(array_unique($colors));
+    }
+
+    private function calculateBrandScore(string $foundBrand, string $lostBrand): int
+    {
+        $foundBrandNorm = str_replace([' ', '-'], '', strtoupper($foundBrand));
+        $lostBrandNorm = str_replace([' ', '-'], '', strtoupper($lostBrand));
+
+        if ($foundBrandNorm === '' || $lostBrandNorm === '') {
+            return 0;
+        }
+
+        if ($foundBrandNorm === $lostBrandNorm) {
+            return 10;
+        }
+
+        if (str_contains($foundBrandNorm, $lostBrandNorm) || str_contains($lostBrandNorm, $foundBrandNorm)) {
+            return 5;
+        }
+
+        return 0;
+    }
+
+    private function calculateSerialScore(string $foundSerial, string $lostSerial): int
+    {
+        $foundSerialNorm = str_replace([' ', '-'], '', strtoupper($foundSerial));
+        $lostSerialNorm = str_replace([' ', '-'], '', strtoupper($lostSerial));
+
+        if ($foundSerialNorm === '' || $lostSerialNorm === '') {
+            return 0;
+        }
+
+        if ($foundSerialNorm === $lostSerialNorm) {
+            return 20;
+        }
+
+        if (str_contains($foundSerialNorm, $lostSerialNorm) || str_contains($lostSerialNorm, $foundSerialNorm)) {
+            return 10;
+        }
+
+        return 0;
+    }
+
+    private function calculateFlightScore(string $foundFlight, string $lostFlight): int
+    {
+        $foundFlightNorm = str_replace([' ', '-'], '', strtoupper($foundFlight));
+        $lostFlightNorm = str_replace([' ', '-'], '', strtoupper($lostFlight));
+
+        if ($foundFlightNorm === '' || $lostFlightNorm === '') {
+            return 0;
+        }
+
+        if ($foundFlightNorm === $lostFlightNorm) {
+            return 10;
+        }
+
+        if (str_contains($foundFlightNorm, $lostFlightNorm) || str_contains($lostFlightNorm, $foundFlightNorm)) {
+            return 5;
+        }
+
+        return 0;
+    }
+
+    private function getActorName(): string
+    {
+        return auth()->user()->name
+            ?? auth()->user()->username
+            ?? 'Staff';
+    }
+
+    private function writeActionLog(string $actionType, string $targetName, string $details): void
+    {
+        AdminActionLog::create([
+            'admin_name' => $this->getActorName(),
+            'action_type' => $actionType,
+            'target_name' => $targetName,
+            'details' => $details,
+        ]);
     }
 }

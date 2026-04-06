@@ -13,33 +13,30 @@ class PickupPassMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $match;
-    public $qrRaw;
-    protected $qrCid = 'pickup-pass-qr@airport.system';
+    private const QR_CONTENT_ID = 'pickup-pass-qr@airport.system';
 
-    /**
-     * @param MatchRecord $match 🌟 內部已統一使用 lostItem 關聯
-     * @param string $qrRaw 
-     */
-    public function __construct(MatchRecord $match, $qrRaw)
+    public MatchRecord $match;
+    public string $qrRaw;
+
+    public function __construct(MatchRecord $match, string $qrRaw)
     {
         $this->match = $match;
         $this->qrRaw = $qrRaw;
     }
 
-    public function build()
+    public function build(): self
     {
-        return $this->subject('🎫 Your Official Pickup Pass - Airport Lost & Found')
-            ->view('emails.pickup_pass') // 🌟 建議 View 也同步改名
+        return $this->subject('Your Official Pickup Pass - Airport Lost & Found')
+            ->view('emails.pickup_pass')
             ->with([
                 'match' => $this->match,
-                'qrCid' => $this->qrCid,
+                'qrCid' => self::QR_CONTENT_ID,
             ])
             ->withSymfonyMessage(function (Email $email) {
-                // 🌟 透過 CID 內嵌圖片，支援離線查看
                 $part = new DataPart($this->qrRaw, 'qrcode.png', 'image/png');
                 $part->asInline();
-                $part->setContentId($this->qrCid);
+                $part->setContentId(self::QR_CONTENT_ID);
+
                 $email->addPart($part);
             });
     }

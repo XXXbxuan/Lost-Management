@@ -3,16 +3,22 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\FoundItem;
-use App\Models\StorageSlot;
-use Illuminate\Http\Request;
-use App\Models\InventoryMovement;
-use Illuminate\Support\Facades\DB;
+use App\Http\Requests\Staff\MarkInventorySlotServiceRequest;
+use App\Http\Requests\Staff\MoveFoundItemRequest;
+use App\Http\Requests\Staff\RemoveFoundItemRequest;
 use App\Models\AdminActionLog;
+use App\Models\FoundItem;
+use App\Models\InventoryMovement;
+use App\Models\StorageSlot;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class InventoryController extends Controller
 {
-    public function index(Request $request)
+    public function showInventoryMap(Request $request): View
     {
         $zone = $request->get('zone', 'GEN');
 
@@ -34,14 +40,14 @@ class InventoryController extends Controller
 
         $groupedSlots = $slots->groupBy('shelf_code');
 
-        return view('staff.found_items.inventory', [
+        return view('staff.inventory.index', [
             'zone' => $zone,
             'groupedSlots' => $groupedSlots,
             'occupiedItems' => $occupiedItems,
         ]);
     }
 
-    public function showSlot($fullCode)
+    public function showSlotDetails(string $fullCode): View
     {
         $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
 
@@ -49,26 +55,7 @@ class InventoryController extends Controller
             ->whereIn('status', ['Unclaimed', 'Matched'])
             ->first();
 
-        $storedDays = null;
-        $autoRemoveEligible = false;
-
-        if ($item) {
-            $baseDate = null;
-
-            if (!empty($item->found_date)) {
-                $baseDate = $item->found_date;
-            } elseif (!empty($item->created_at)) {
-                $baseDate = $item->created_at;
-            }
-
-            if ($baseDate) {
-                $storedDays = \Carbon\Carbon::parse($baseDate)->diffInDays(now());
-            }
-
-            $autoRemoveEligible = $item->status === 'Unclaimed'
-                && $storedDays !== null
-                && $storedDays >= 90;
-        }
+        $storageInfo = $this->calculateStorageInfo($item);
 
         if ($slot->slot_status === 'Service') {
             $displaySlotStatus = 'Service';
@@ -99,40 +86,32 @@ class InventoryController extends Controller
             })
             ->values();
 
-        return view('staff.found_items.slot_details', [
+        return view('staff.inventory.slot_details', [
             'slot' => $slot,
             'item' => $item,
-            'storedDays' => $storedDays,
-            'autoRemoveEligible' => $autoRemoveEligible,
+            'storedDays' => $storageInfo['storedDays'],
+            'autoRemoveEligible' => $storageInfo['autoRemoveEligible'],
             'displaySlotStatus' => $displaySlotStatus,
             'moveSlots' => $moveSlots,
         ]);
     }
 
-    public function move(Request $request, $id)
+    public function moveFoundItem(MoveFoundItemRequest $request, int $id): RedirectResponse
     {
         $item = FoundItem::findOrFail($id);
-
-        $request->validate([
-            'new_location' => ['required', 'string', 'exists:storage_slots,full_code'],
-        ]);
+        $validated = $request->validated();
 
         if (!in_array($item->status, ['Unclaimed', 'Matched'])) {
             return back()->with('error', 'Only active found items can be moved.');
         }
 
-        $targetSlot = StorageSlot::where('full_code', $request->new_location)->firstOrFail();
+        $targetSlot = StorageSlot::where('full_code', $validated['new_location'])->firstOrFail();
 
         if ($targetSlot->slot_status === 'Service') {
             return back()->with('error', 'This slot is under service and cannot be selected.');
         }
 
-        $isOccupied = FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
-            ->where('storage_location', $targetSlot->full_code)
-            ->where('id', '!=', $item->id)
-            ->exists();
-
-        if ($isOccupied) {
+        if ($this->isSlotOccupiedByActiveItem($targetSlot->full_code, $item->id)) {
             return back()->with('error', 'This slot is already occupied.');
         }
 
@@ -156,12 +135,11 @@ class InventoryController extends Controller
                 'performed_by' => auth()->id(),
             ]);
 
-            AdminActionLog::create([
-                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-                'action_type' => 'MOVE_FOUND_ITEM',
-                'target_name' => "Found Item #{$item->id}",
-                'details' => "Moved item: {$item->item_name} from [{$fromLocation}] to [{$targetSlot->full_code}].",
-            ]);
+            $this->writeActionLog(
+                'MOVE_FOUND_ITEM',
+                "Found Item #{$item->id}",
+                "Moved item: {$item->item_name} from [{$fromLocation}] to [{$targetSlot->full_code}]."
+            );
         });
 
         return redirect()
@@ -169,18 +147,106 @@ class InventoryController extends Controller
             ->with('success', 'Item moved successfully.');
     }
 
-    public function remove(Request $request, $id)
+    public function removeFoundItem(RemoveFoundItemRequest $request, int $id): RedirectResponse
     {
         $item = FoundItem::findOrFail($id);
-
-        $request->validate([
-            'removal_reason' => ['required', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
 
         if ($item->status === 'Claimed') {
             return back()->with('error', 'Claimed items cannot be removed.');
         }
 
+        $storageInfo = $this->calculateStorageInfo($item);
+        $autoRemoveEligible = $storageInfo['autoRemoveEligible'];
+
+        $isAdmin = auth()->check() && auth()->user()->role === 'Admin';
+
+        if (!$autoRemoveEligible && !$isAdmin) {
+            return back()->with('error', 'Only Admin can remove items before the 90-day unclaimed rule is met.');
+        }
+
+        $oldLocation = $item->storage_location;
+
+        DB::transaction(function () use ($item, $validated, $oldLocation, $autoRemoveEligible) {
+            $item->update([
+                'status' => 'Removed',
+                'removed_at' => now(),
+                'removal_reason' => $validated['removal_reason'],
+                'storage_location' => null,
+            ]);
+
+            InventoryMovement::create([
+                'found_item_id' => $item->id,
+                'from_location' => $oldLocation,
+                'to_location' => null,
+                'action_type' => $autoRemoveEligible ? 'auto_remove' : 'remove',
+                'remarks' => $validated['removal_reason'],
+                'performed_by' => auth()->id(),
+            ]);
+
+            $this->writeActionLog(
+                $autoRemoveEligible ? 'AUTO_REMOVE_FOUND_ITEM' : 'REMOVE_FOUND_ITEM',
+                "Found Item #{$item->id}",
+                "Removed item: {$item->item_name} from [{$oldLocation}]. Reason: {$validated['removal_reason']}."
+            );
+        });
+
+        return redirect()
+            ->route('staff.inventory.index', ['zone' => explode('-', $oldLocation)[0] ?? 'GEN'])
+            ->with('success', 'Item removed from inventory successfully.');
+    }
+
+    public function markSlotAsService(MarkInventorySlotServiceRequest $request, string $fullCode): RedirectResponse
+    {
+        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+        $validated = $request->validated();
+
+        if ($this->isSlotOccupiedByActiveItem($fullCode)) {
+            return back()->with('error', 'This slot is currently occupied. Move or remove the item first.');
+        }
+
+        if ($slot->slot_status === 'Service') {
+            return back()->with('error', 'This slot is already marked as service.');
+        }
+
+        $slot->update([
+            'slot_status' => 'Service',
+            'remark' => $validated['service_remark'],
+        ]);
+
+        $this->writeActionLog(
+            'MARK_SLOT_SERVICE',
+            "Storage Slot {$slot->full_code}",
+            "Marked slot as service. Remark: {$validated['service_remark']}"
+        );
+
+        return back()->with('success', 'Slot marked as service successfully.');
+    }
+
+    public function restoreServiceSlot(string $fullCode): RedirectResponse
+    {
+        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+
+        if ($slot->slot_status !== 'Service') {
+            return back()->with('error', 'Only service slots can be restored.');
+        }
+
+        $slot->update([
+            'slot_status' => 'Available',
+            'remark' => null,
+        ]);
+
+        $this->writeActionLog(
+            'RESTORE_SLOT_SERVICE',
+            "Storage Slot {$slot->full_code}",
+            'Restored slot from service to available.'
+        );
+
+        return back()->with('success', 'Slot restored to available successfully.');
+    }
+
+    private function calculateStorageInfo(?FoundItem $item): array
+    {
         $storedDays = null;
         $autoRemoveEligible = false;
 
@@ -194,7 +260,7 @@ class InventoryController extends Controller
             }
 
             if ($baseDate) {
-                $storedDays = \Carbon\Carbon::parse($baseDate)->diffInDays(now());
+                $storedDays = Carbon::parse($baseDate)->diffInDays(now());
             }
 
             $autoRemoveEligible = $item->status === 'Unclaimed'
@@ -202,99 +268,35 @@ class InventoryController extends Controller
                 && $storedDays >= 90;
         }
 
-        $isAdmin = auth()->check() && auth()->user()->role === 'Admin';
-
-        if (!$autoRemoveEligible && !$isAdmin) {
-            return back()->with('error', 'Only Admin can remove items before the 90-day unclaimed rule is met.');
-        }
-
-        $oldLocation = $item->storage_location;
-
-        DB::transaction(function () use ($item, $request, $oldLocation, $autoRemoveEligible) {
-            $item->update([
-                'status' => 'Removed',
-                'removed_at' => now(),
-                'removal_reason' => $request->removal_reason,
-                'storage_location' => null,
-            ]);
-
-            InventoryMovement::create([
-                'found_item_id' => $item->id,
-                'from_location' => $oldLocation,
-                'to_location' => null,
-                'action_type' => $autoRemoveEligible ? 'auto_remove' : 'remove',
-                'remarks' => $request->removal_reason,
-                'performed_by' => auth()->id(),
-            ]);
-
-            AdminActionLog::create([
-                'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-                'action_type' => $autoRemoveEligible ? 'AUTO_REMOVE_FOUND_ITEM' : 'REMOVE_FOUND_ITEM',
-                'target_name' => "Found Item #{$item->id}",
-                'details' => "Removed item: {$item->item_name} from [{$oldLocation}]. Reason: {$request->removal_reason}.",
-            ]);
-        });
-
-        return redirect()
-            ->route('staff.inventory.index', ['zone' => explode('-', $oldLocation)[0] ?? 'GEN'])
-            ->with('success', 'Item removed from inventory successfully.');
+        return [
+            'storedDays' => $storedDays,
+            'autoRemoveEligible' => $autoRemoveEligible,
+        ];
     }
 
-    public function markService(Request $request, $fullCode)
+    private function isSlotOccupiedByActiveItem(string $fullCode, ?int $ignoreItemId = null): bool
     {
-        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
-
-        $request->validate([
-            'service_remark' => ['required', 'string', 'max:255'],
-        ]);
-
-        $hasActiveItem = FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
+        return FoundItem::whereIn('status', ['Unclaimed', 'Matched'])
             ->where('storage_location', $fullCode)
+            ->when($ignoreItemId, function ($query) use ($ignoreItemId) {
+                $query->where('id', '!=', $ignoreItemId);
+            })
             ->exists();
-
-        if ($hasActiveItem) {
-            return back()->with('error', 'This slot is currently occupied. Move or remove the item first.');
-        }
-
-        if ($slot->slot_status === 'Service') {
-            return back()->with('error', 'This slot is already marked as service.');
-        }
-
-        $slot->update([
-            'slot_status' => 'Service',
-            'remark' => $request->service_remark,
-        ]);
-
-        AdminActionLog::create([
-            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'MARK_SLOT_SERVICE',
-            'target_name' => "Storage Slot {$slot->full_code}",
-            'details' => "Marked slot as service. Remark: {$request->service_remark}",
-        ]);
-
-        return back()->with('success', 'Slot marked as service successfully.');
     }
 
-    public function restoreSlot($fullCode)
+    private function getActorName(): string
     {
-        $slot = StorageSlot::where('full_code', $fullCode)->firstOrFail();
+        return auth()->user()->name
+            ?: (auth()->user()->username ?: 'Staff');
+    }
 
-        if ($slot->slot_status !== 'Service') {
-            return back()->with('error', 'Only service slots can be restored.');
-        }
-
-        $slot->update([
-            'slot_status' => 'Available',
-            'remark' => null,
-        ]);
-
+    private function writeActionLog(string $actionType, string $targetName, string $details): void
+    {
         AdminActionLog::create([
-            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'RESTORE_SLOT_SERVICE',
-            'target_name' => "Storage Slot {$slot->full_code}",
-            'details' => "Restored slot from service to available.",
+            'admin_name' => $this->getActorName(),
+            'action_type' => $actionType,
+            'target_name' => $targetName,
+            'details' => $details,
         ]);
-
-        return back()->with('success', 'Slot restored to available successfully.');
     }
 }

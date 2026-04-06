@@ -3,31 +3,38 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Staff\SendAIChatMessageRequest;
 use App\Services\AIActionService;
 use App\Services\OpenAIChatService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Throwable;
 
 class AIChatController extends Controller
 {
+    protected OpenAIChatService $chatService;
+    protected AIActionService $actionService;
+
+    public function __construct(
+        OpenAIChatService $chatService,
+        AIActionService $actionService
+    ) {
+        $this->chatService = $chatService;
+        $this->actionService = $actionService;
+    }
+
     public function index(): View
     {
         return view('staff.ai_chat.index');
     }
 
-    public function ask(
-        Request $request,
-        OpenAIChatService $chatService,
-        AIActionService $actionService
-    ): JsonResponse {
-        $validated = $request->validate([
-            'message' => ['required', 'string', 'max:2000'],
-        ]);
+    public function sendMessage(SendAIChatMessageRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
 
         try {
-            $action = $actionService->handle($validated['message']);
+            $action = $this->actionService->handle($validated['message']);
 
             if ($action) {
                 return response()->json([
@@ -41,24 +48,28 @@ class AIChatController extends Controller
                 ]);
             }
 
-            $reply = $chatService->ask($validated['message']);
+            $reply = $this->chatService->ask($validated['message']);
 
             return response()->json([
                 'success' => true,
                 'reply' => $reply,
             ]);
         } catch (Throwable $e) {
+            Log::error('AI chat sendMessage failed.', [
+                'message' => $validated['message'],
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'reply' => 'Sorry, the AI assistant is temporarily unavailable.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    public function clear(OpenAIChatService $chatService): JsonResponse
+    public function clearHistory(): JsonResponse
     {
-        $chatService->clearHistory();
+        $this->chatService->clearHistory();
 
         return response()->json([
             'success' => true,

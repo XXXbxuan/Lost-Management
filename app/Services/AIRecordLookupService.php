@@ -17,29 +17,36 @@ class AIRecordLookupService
 
         if ($this->matches($text, [
             '/^(?:show|view|get|check)?\s*(?:staff|staff\s+summary|staff\s+member)(?:\s*(?:id|no\.?|number))?\s*#?\s*([A-Za-z0-9_-]+)$/i',
-        ], $m)) {
-            return $this->getStaffSummary($m[1]);
+        ], $matches)) {
+            return $this->getStaffSummary($matches[1]);
         }
 
         if ($this->matches($text, [
             '/^(?:show|view|get|check)?\s*(?:lost\s+report|lost)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
             '/^(?:show|view|get|check)?\s*lost\s+report\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
-        ], $m)) {
-            return $this->getLostReportSummary((int) $m[1]);
+        ], $matches)) {
+            return $this->getLostReportSummary((int) $matches[1]);
         }
 
         if ($this->matches($text, [
             '/^(?:show|view|get|check)?\s*(?:found\s+item|found)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
             '/^(?:show|view|get|check)?\s*found\s+item\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
-        ], $m)) {
-            return $this->getFoundItemSummary((int) $m[1]);
+        ], $matches)) {
+            return $this->getFoundItemSummary((int) $matches[1]);
+        }
+
+        if ($this->matches($text, [
+            '/^(?:show|view|get|check)?\s*(?:claim|claim\s+record|claim\s+receipt)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+            '/^(?:show|view|get|check)?\s*claim\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
+        ], $matches)) {
+            return $this->getClaimSummary((int) $matches[1]);
         }
 
         if ($this->matches($text, [
             '/^(?:show|view|get|check)?\s*(?:match|match\s+record)(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
             '/^(?:show|view|get|check)?\s*match\s+record\s+details?(?:\s*(?:id|no\.?|number))?\s*#?\s*(\d+)$/i',
-        ], $m)) {
-            return $this->getMatchSummary((int) $m[1]);
+        ], $matches)) {
+            return $this->getMatchSummary((int) $matches[1]);
         }
 
         return null;
@@ -111,9 +118,7 @@ class AIRecordLookupService
             ->latest('created_at')
             ->first();
 
-        $claim = $match
-            ? Claim::where('match_id', $match->id)->latest('created_at')->first()
-            : null;
+        $claim = $match ? $this->findLatestClaimByMatchId($match->id) : null;
 
         $staffName = $report->staff?->name ?? $report->staff?->user?->name ?? 'N/A';
 
@@ -150,9 +155,7 @@ class AIRecordLookupService
             ->latest('created_at')
             ->first();
 
-        $claim = $match
-            ? Claim::where('match_id', $match->id)->latest('created_at')->first()
-            : null;
+        $claim = $match ? $this->findLatestClaimByMatchId($match->id) : null;
 
         $staffName = $item->staff?->name ?? $item->staff?->user?->name ?? 'N/A';
 
@@ -175,15 +178,44 @@ class AIRecordLookupService
             "Claim Record: " . ($claim ? "#{$claim->id}" : 'None');
     }
 
+    private function getClaimSummary(int $id): string
+    {
+        $claim = Claim::find($id);
+
+        if (!$claim) {
+            return "I could not find claim record ID {$id}.";
+        }
+
+        $match = $claim->match_id
+            ? MatchRecord::with(['lostItem', 'foundItem'])->find($claim->match_id)
+            : null;
+
+        return
+            "Claim Record Summary\n\n" .
+            "Claim ID: {$claim->id}\n" .
+            "Receipt No: " . ($claim->receipt_no ?? '-') . "\n" .
+            "Match ID: " . ($claim->match_id ?? '-') . "\n" .
+            "Lost Report ID: " . ($claim->lostId ?? '-') . "\n" .
+            "Found Item ID: " . ($claim->foundId ?? '-') . "\n" .
+            "Claimer Name: " . ($claim->claimerName ?? '-') . "\n" .
+            "Claimer IC / Passport: " . ($claim->claimerIcPassport ?? '-') . "\n" .
+            "Claimer Phone: " . ($claim->claimerPhone ?? '-') . "\n" .
+            "Processed By: " . ($claim->processed_by_name ?? $claim->processedBy ?? '-') . "\n" .
+            "Claimed At: " . ($claim->claimedAt ?? '-') . "\n" .
+            "Lost Item Name: " . ($match?->lostItem?->item_name ?? '-') . "\n" .
+            "Found Item Name: " . ($match?->foundItem?->item_name ?? '-') . "\n" .
+            "Handover Notes: " . ($claim->handover_notes ?: 'No notes.');
+    }
+
     private function getMatchSummary(int $id): string
     {
-        $match = MatchRecord::with(['lostItem', 'foundItem', 'claim'])->find($id);
+        $match = MatchRecord::with(['lostItem', 'foundItem'])->find($id);
 
         if (!$match) {
             return "I could not find match record ID {$id}.";
         }
 
-        $claim = Claim::where('match_id', $match->id)->latest('created_at')->first();
+        $claim = $this->findLatestClaimByMatchId($match->id);
 
         return
             "Match Record Summary\n\n" .
@@ -199,6 +231,13 @@ class AIRecordLookupService
             "Confirmed: " . ($match->is_confirmed ? 'Yes' : 'No') . "\n" .
             "Claim Record: " . ($claim ? "#{$claim->id}" : 'None') . "\n" .
             "Notes: " . ($match->notes ?: 'No notes.');
+    }
+
+    private function findLatestClaimByMatchId(int $matchId): ?Claim
+    {
+        return Claim::where('match_id', $matchId)
+            ->latest('created_at')
+            ->first();
     }
 
     private function matches(string $text, array $patterns, ?array &$matches = null): bool

@@ -7,9 +7,7 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            
-            {{-- 成功提示 --}}
-            @if(session('success'))
+            @if (session('success'))
                 <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative shadow-sm" role="alert">
                     <span class="block sm:inline">{{ session('success') }}</span>
                 </div>
@@ -17,23 +15,32 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
                 <div class="p-6 text-gray-900">
-
-                    {{-- 顶部功能区：搜索 + 添加按钮 --}}
                     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <form method="GET" action="{{ route('admin.staff.index') }}" class="flex w-full md:w-auto gap-2">
-                            <input type="text" name="search" placeholder="Search name or email..." value="{{ request('search') }}" 
-                                class="rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-64">
-                            <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-r-md hover:bg-gray-700 transition font-bold">
+                            <input
+                                type="text"
+                                name="search"
+                                placeholder="Search name or email..."
+                                value="{{ request('search') }}"
+                                class="w-64 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            >
+                            <button
+                                type="submit"
+                                class="bg-gray-800 text-white px-4 py-2 rounded-r-md hover:bg-gray-700 transition font-bold"
+                            >
                                 Search
                             </button>
                         </form>
 
-                        <a href="{{ route('admin.staff.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md font-bold hover:bg-blue-700 transition shadow-md no-underline flex items-center gap-2">
-                            <span>+</span> Add New Staff
+                        <a
+                            href="{{ route('admin.staff.create') }}"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md font-bold hover:bg-blue-700 transition shadow-md no-underline flex items-center gap-2"
+                        >
+                            <span>+</span>
+                            <span>Add New Staff</span>
                         </a>
                     </div>
 
-                    {{-- 表格区域 --}}
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white border border-gray-200">
                             <thead>
@@ -47,24 +54,25 @@
                                     <th class="py-3 px-6 text-center font-bold">Actions</th>
                                 </tr>
                             </thead>
+
                             <tbody class="text-gray-600 text-sm font-light">
-                                @forelse($staffMembers as $staff)
+                                @forelse ($staffMembers as $staff)
                                     <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-                                        
-                                        {{-- Staff ID --}}
                                         <td class="py-3 px-6 text-left whitespace-nowrap font-bold">
                                             #{{ $staff->staff_id }}
                                         </td>
 
-                                        {{-- Name & Department --}}
                                         <td class="py-3 px-6 text-left">
-                                            <div class="font-bold text-gray-800 text-base">{{ $staff->name }}</div>
-                                            <div class="text-xs text-gray-400 mt-1 uppercase tracking-wide">{{ $staff->department }}</div>
+                                            <div class="font-bold text-gray-800 text-base">
+                                                {{ $staff->name }}
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1 uppercase tracking-wide">
+                                                {{ $staff->department }}
+                                            </div>
                                         </td>
 
-                                        {{-- Role (角色区分) --}}
                                         <td class="py-3 px-6 text-center">
-                                            @if(isset($staff->user->role) && strtolower($staff->user->role) === 'admin')
+                                            @if (isset($staff->user->role) && strtolower($staff->user->role) === 'admin')
                                                 <span class="bg-purple-100 text-purple-700 py-1 px-3 rounded-full text-[10px] font-black uppercase tracking-wider border border-purple-200 shadow-sm">
                                                     👑 Admin
                                                 </span>
@@ -75,22 +83,23 @@
                                             @endif
                                         </td>
 
-                                        {{-- Email & Username --}}
                                         <td class="py-3 px-6 text-left">
                                             <div class="flex flex-col">
-                                                <span class="font-bold text-gray-700">{{ $staff->user->email ?? 'N/A' }}</span>
-                                                <span class="text-xs text-gray-400 font-mono">{{ $staff->user->username ?? 'N/A' }}</span>
+                                                <span class="font-bold text-gray-700">
+                                                    {{ $staff->user->email ?? 'N/A' }}
+                                                </span>
+                                                <span class="text-xs text-gray-400 font-mono">
+                                                    {{ $staff->user->username ?? 'N/A' }}
+                                                </span>
                                             </div>
                                         </td>
 
-                                        {{-- Contact --}}
                                         <td class="py-3 px-6 text-left">
                                             {{ $staff->contact_number ?? '-' }}
                                         </td>
 
-                                        {{-- Status --}}
                                         <td class="py-3 px-6 text-center">
-                                            @if($staff->status === 'Active')
+                                            @if ($staff->status === 'Active')
                                                 <span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-[10px] font-bold uppercase tracking-wide border border-green-200">
                                                     Active
                                                 </span>
@@ -101,10 +110,12 @@
                                             @endif
                                         </td>
 
-                                        {{-- Actions (已删除 Delete 按钮，并修复 ID 问题) --}}
                                         <td class="py-3 px-6 text-center">
-                                            <div class="flex item-center justify-center">
-                                                <a href="{{ route('admin.staff.edit', $staff->staff_id) }}" class="text-blue-600 hover:text-blue-900 font-bold text-xs uppercase hover:underline">
+                                            <div class="flex items-center justify-center">
+                                                <a
+                                                    href="{{ route('admin.staff.edit', $staff->staff_id) }}"
+                                                    class="text-blue-600 hover:text-blue-900 font-bold text-xs uppercase hover:underline"
+                                                >
                                                     Manage
                                                 </a>
                                             </div>
@@ -121,11 +132,9 @@
                         </table>
                     </div>
 
-                    {{-- 分页 --}}
                     <div class="mt-4">
                         {{ $staffMembers->withQueryString()->links() }}
                     </div>
-
                 </div>
             </div>
         </div>

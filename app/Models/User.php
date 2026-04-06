@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
+        'name',
         'username',
         'email',
         'password',
@@ -38,6 +41,11 @@ class User extends Authenticatable
 
     public function staff()
     {
-        return $this->hasOne(\App\Models\Staff::class, 'user_id', 'id');
+        return $this->hasOne(Staff::class, 'user_id', 'id');
+    }
+
+    public function redemptions()
+    {
+        return $this->hasMany(Redemption::class);
     }
 }

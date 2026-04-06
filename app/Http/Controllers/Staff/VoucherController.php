@@ -3,34 +3,24 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Voucher;
+use App\Http\Requests\Staff\StoreVoucherRequest;
 use App\Models\AdminActionLog;
+use App\Models\Voucher;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
 class VoucherController extends Controller
 {
-    // 1. Show List & Create Form
-    public function index()
+    public function index(): View
     {
         $vouchers = Voucher::latest()->get();
+
         return view('staff.vouchers.index', compact('vouchers'));
     }
 
-    // 2. Store New Voucher
-    public function store(Request $request)
+    public function store(StoreVoucherRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'required|string|max:255',
-            'points' => 'required|integer|min:0',
-            'description' => 'required|string',
-        ]);
-
-        if ((int) $validated['points'] < 0) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Error: Voucher cost cannot be a negative number!');
-        }
+        $validated = $request->validated();
 
         $voucher = Voucher::create([
             'name' => $validated['name'],
@@ -39,31 +29,45 @@ class VoucherController extends Controller
             'description' => $validated['description'],
         ]);
 
-        AdminActionLog::create([
-            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'CREATE_VOUCHER',
-            'target_name' => "Voucher #{$voucher->id}",
-            'details' => "Created voucher: {$voucher->name}, Category: {$voucher->category}, Points: {$voucher->points}.",
-        ]);
+        $this->writeActionLog(
+            'CREATE_VOUCHER',
+            "Voucher #{$voucher->id}",
+            "Created voucher: {$voucher->name}, Category: {$voucher->category}, Points: {$voucher->points}."
+        );
 
-        return redirect()->route('staff.vouchers.index')
-            ->with('success', 'New reward voucher created successfully!');
+        return redirect()
+            ->route('staff.vouchers.index')
+            ->with('success', 'New reward voucher created successfully.');
     }
 
-    // 3. Delete Voucher
-    public function destroy($id)
+    public function destroy(Voucher $voucher): RedirectResponse
     {
-        $voucher = Voucher::findOrFail($id);
-
-        AdminActionLog::create([
-            'admin_name' => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'DELETE_VOUCHER',
-            'target_name' => "Voucher #{$voucher->id}",
-            'details' => "Deleted voucher: {$voucher->name}, Category: {$voucher->category}, Points: {$voucher->points}.",
-        ]);
+        $this->writeActionLog(
+            'DELETE_VOUCHER',
+            "Voucher #{$voucher->id}",
+            "Deleted voucher: {$voucher->name}, Category: {$voucher->category}, Points: {$voucher->points}."
+        );
 
         $voucher->delete();
 
-        return redirect()->route('staff.vouchers.index')->with('success', 'Voucher deleted.');
+        return redirect()
+            ->route('staff.vouchers.index')
+            ->with('success', 'Voucher deleted.');
+    }
+
+    private function getActorName(): string
+    {
+        return auth()->user()->name
+            ?: (auth()->user()->username ?: 'Staff');
+    }
+
+    private function writeActionLog(string $actionType, string $targetName, string $details): void
+    {
+        AdminActionLog::create([
+            'admin_name' => $this->getActorName(),
+            'action_type' => $actionType,
+            'target_name' => $targetName,
+            'details' => $details,
+        ]);
     }
 }

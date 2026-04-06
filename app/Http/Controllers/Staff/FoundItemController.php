@@ -3,34 +3,39 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\FoundItem;
-use App\Models\User;
-use App\Http\Requests\StoreFoundItemRequest;
-use App\Services\FoundItemService;
-use Illuminate\Http\Request;
+use App\Http\Requests\Staff\StoreFoundItemRequest;
+use App\Http\Requests\Staff\UpdateFoundItemRequest;
 use App\Models\AdminActionLog;
+use App\Models\FoundItem;
+use App\Models\StorageSlot;
+use App\Models\User;
+use App\Services\FoundItemService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
+use Illuminate\View\View;
 
 class FoundItemController extends Controller
 {
-    protected $foundItemService;
+    protected FoundItemService $foundItemService;
 
     public function __construct(FoundItemService $foundItemService)
     {
         $this->foundItemService = $foundItemService;
     }
 
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $status = $request->query('status', 'All');
         $openItemId = $request->query('open_item');
 
-        $query = \App\Models\FoundItem::query()->latest();
+        $query = FoundItem::query()->latest();
+        $perPage = 10;
 
         if ($status !== 'All') {
             $query->where('status', $status);
         }
-
-        $perPage = 10;
 
         if ($openItemId) {
             $orderedIds = (clone $query)->pluck('id')->values();
@@ -42,7 +47,7 @@ class FoundItemController extends Controller
             if ($position !== false) {
                 $targetPage = (int) floor($position / $perPage) + 1;
 
-                \Illuminate\Pagination\Paginator::currentPageResolver(function () use ($targetPage) {
+                Paginator::currentPageResolver(function () use ($targetPage) {
                     return $targetPage;
                 });
             }
@@ -53,7 +58,7 @@ class FoundItemController extends Controller
         return view('staff.found_items.index', compact('foundItems', 'status', 'openItemId'));
     }
 
-    public function create()
+    public function create(): View
     {
         $mode = 'create';
         $foundItem = null;
@@ -61,35 +66,20 @@ class FoundItemController extends Controller
         return view('staff.found_items.create', compact('mode', 'foundItem'));
     }
 
-    public function store(StoreFoundItemRequest $request)
+    public function store(StoreFoundItemRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $targetLocation = $data['storage_location'];
 
-        $request->validate([
-            'finder_email' => 'nullable|email',
-        ]);
-
-        $targetLocation = $request->input('storage_location');
-
-        $isOccupied = FoundItem::where('storage_location', $targetLocation)
-            ->where('status', '!=', 'Claimed')
-            ->exists();
-
-        if ($isOccupied) {
+        if ($this->isStorageLocationOccupied($targetLocation)) {
             return back()
                 ->withInput()
                 ->withErrors([
-                    'storage_location' => "Error: The slot {$targetLocation} is already occupied! Please choose another one."
+                    'storage_location' => "Error: The slot {$targetLocation} is already occupied! Please choose another one.",
                 ]);
         }
 
-        if ($request->has('sub_colors') && is_array($request->input('sub_colors'))) {
-            $subColorsString = implode(', ', $request->input('sub_colors'));
-
-            if (($data['color'] ?? null) === 'Multi-color') {
-                $data['color'] = 'Multi-color (' . $subColorsString . ')';
-            }
-        }
+        $data = $this->normalizeMultiColor($data);
 
         $this->foundItemService->createFoundItem(
             $data,
@@ -98,12 +88,12 @@ class FoundItemController extends Controller
 
         $successMessage = 'Found item registered successfully.';
 
-        if ($request->filled('finder_email')) {
-            $finder = User::where('email', $request->finder_email)->first();
+        if (!empty($data['finder_email'])) {
+            $finder = User::where('email', $data['finder_email'])->first();
 
             if ($finder) {
                 $finder->increment('points', 100);
-                $successMessage = 'Item saved successfully and 100 points were awarded to the user who found item!';
+                $successMessage = 'Item saved successfully and 100 points were awarded to the user who found the item.';
             }
         }
 
@@ -112,7 +102,7 @@ class FoundItemController extends Controller
             ->with('success', $successMessage);
     }
 
-    public function edit(FoundItem $foundItem)
+    public function edit(FoundItem $foundItem): RedirectResponse|View
     {
         if ($foundItem->status !== 'Unclaimed') {
             return redirect()
@@ -125,7 +115,7 @@ class FoundItemController extends Controller
         return view('staff.found_items.create', compact('mode', 'foundItem'));
     }
 
-    public function update(Request $request, FoundItem $foundItem)
+    public function update(UpdateFoundItemRequest $request, FoundItem $foundItem): RedirectResponse
     {
         if ($foundItem->status !== 'Unclaimed') {
             return redirect()
@@ -133,69 +123,39 @@ class FoundItemController extends Controller
                 ->with('error', 'Only unclaimed items can be updated.');
         }
 
-        $validated = $request->validate([
-            'item_name'        => ['required', 'string', 'max:255'],
-            'category'         => ['required', 'string'],
-            'brand'            => ['nullable', 'string', 'max:50'],
-            'color'            => ['required', 'string'],
-            'sub_colors'       => ['nullable', 'array'],
-            'sub_colors.*'     => ['string'],
-            'serial_number'    => ['nullable', 'string'],
-            'found_location'   => ['required', 'string'],
-            'flight_number'    => ['nullable', 'string', 'max:20'],
-            'found_time'       => ['required', 'date'],
-            'description'      => ['nullable', 'string'],
-            'zone'             => ['required', 'string'],
-            'shelf'            => ['required', 'string'],
-            'slot'             => ['required', 'string'],
-            'storage_location' => ['required', 'string'],
-            'image'            => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
-        ]);
+        $validated = $request->validated();
+        $targetLocation = $validated['storage_location'];
 
-        $targetLocation = $request->input('storage_location');
-
-        $isOccupied = FoundItem::where('storage_location', $targetLocation)
-            ->where('id', '!=', $foundItem->id)
-            ->where('status', '!=', 'Claimed')
-            ->exists();
-
-        if ($isOccupied) {
+        if ($this->isStorageLocationOccupied($targetLocation, $foundItem->id)) {
             return back()
                 ->withInput()
                 ->withErrors([
-                    'storage_location' => "Error: The slot {$targetLocation} is already occupied! Please choose another one."
+                    'storage_location' => "Error: The slot {$targetLocation} is already occupied! Please choose another one.",
                 ]);
         }
 
-        if ($request->has('sub_colors') && is_array($request->input('sub_colors'))) {
-            $subColorsString = implode(', ', $request->input('sub_colors'));
-
-            if (($validated['color'] ?? null) === 'Multi-color') {
-                $validated['color'] = 'Multi-color (' . $subColorsString . ')';
-            }
-        }
+        $validated = $this->normalizeMultiColor($validated);
 
         if ($request->hasFile('image')) {
             $validated['image_path'] = $request->file('image')->store('found_items', 'public');
         }
 
-        unset($validated['zone'], $validated['shelf'], $validated['slot'], $validated['sub_colors']);
+        unset($validated['zone'], $validated['shelf'], $validated['slot'], $validated['sub_colors'], $validated['finder_email']);
 
         $foundItem->update($validated);
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'UPDATE_FOUND_ITEM',
-            'target_name' => "Found Item #{$foundItem->id}",
-            'details'     => "Updated found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}.",
-        ]);
+        $this->writeActionLog(
+            'UPDATE_FOUND_ITEM',
+            "Found Item #{$foundItem->id}",
+            "Updated found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}."
+        );
 
         return redirect()
             ->route('staff.found-items.index')
             ->with('success', 'Found item updated successfully.');
     }
 
-    public function destroy(FoundItem $foundItem)
+    public function destroy(FoundItem $foundItem): RedirectResponse
     {
         if ($foundItem->status !== 'Unclaimed') {
             return redirect()
@@ -203,12 +163,11 @@ class FoundItemController extends Controller
                 ->with('error', 'Only unclaimed items can be deleted.');
         }
 
-        AdminActionLog::create([
-            'admin_name'  => auth()->user()->name ?: (auth()->user()->username ?: 'Staff'),
-            'action_type' => 'DELETE_FOUND_ITEM',
-            'target_name' => "Found Item #{$foundItem->id}",
-            'details'     => "Deleted found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}.",
-        ]);
+        $this->writeActionLog(
+            'DELETE_FOUND_ITEM',
+            "Found Item #{$foundItem->id}",
+            "Deleted found item: {$foundItem->item_name}, Category: {$foundItem->category}, Storage: {$foundItem->storage_location}."
+        );
 
         $foundItem->delete();
 
@@ -217,7 +176,7 @@ class FoundItemController extends Controller
             ->with('success', 'Found item deleted successfully.');
     }
 
-    public function checkOccupiedSlots(Request $request)
+    public function getOccupiedSlots(Request $request): JsonResponse
     {
         $zone = $request->query('zone');
         $shelf = $request->query('shelf');
@@ -234,7 +193,7 @@ class FoundItemController extends Controller
             ->values()
             ->toArray();
 
-        $serviceSlots = \App\Models\StorageSlot::where('zone_code', $zone)
+        $serviceSlots = StorageSlot::where('zone_code', $zone)
             ->where('shelf_code', $shelf)
             ->where('slot_status', 'Service')
             ->pluck('slot_code')
@@ -251,41 +210,79 @@ class FoundItemController extends Controller
         ]);
     }
 
-    public function exportFoundItems()
-{
-    $fileName = 'Airport_Found_Items_Report_' . date('Y-m-d') . '.csv';
+    public function exportFoundItemsReport()
+    {
+        $fileName = 'Airport_Found_Items_Report_' . now()->format('Y-m-d') . '.csv';
+        $items = FoundItem::orderBy('id', 'asc')->get();
 
-    $items = FoundItem::orderBy('id', 'asc')->get();
+        $headers = [
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename={$fileName}",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
 
-    $headers = [
-        'Content-type'        => 'text/csv',
-        'Content-Disposition' => "attachment; filename=$fileName",
-        'Pragma'              => 'no-cache',
-        'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-        'Expires'             => '0',
-    ];
+        $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
 
-    $columns = ['ID', 'Item Name', 'Category', 'Location Found', 'Status', 'Date Logged'];
+        $callback = function () use ($items, $columns) {
+            $file = fopen('php://output', 'w');
 
-    $callback = function () use ($items, $columns) {
-        $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
 
-        fputcsv($file, $columns);
+            foreach ($items as $item) {
+                fputcsv($file, [
+                    $item->id,
+                    $item->item_name,
+                    $item->category,
+                    $item->found_location,
+                    $item->status,
+                    $item->created_at->format('Y-m-d H:i:s'),
+                ]);
+            }
 
-        foreach ($items as $item) {
-            fputcsv($file, [
-                $item->id,
-                $item->item_name,
-                $item->category,
-                $item->found_location,
-                $item->status,
-                $item->created_at->format('Y-m-d H:i:s'),
-            ]);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    private function isStorageLocationOccupied(string $storageLocation, ?int $ignoreId = null): bool
+    {
+        return FoundItem::where('storage_location', $storageLocation)
+            ->when($ignoreId, function ($query) use ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            })
+            ->where('status', '!=', 'Claimed')
+            ->exists();
+    }
+
+    private function normalizeMultiColor(array $data): array
+    {
+        if (!empty($data['sub_colors']) && is_array($data['sub_colors'])) {
+            $subColorsString = implode(', ', $data['sub_colors']);
+
+            if (($data['color'] ?? null) === 'Multi-color') {
+                $data['color'] = 'Multi-color (' . $subColorsString . ')';
+            }
         }
 
-        fclose($file);
-    };
+        return $data;
+    }
 
-    return response()->stream($callback, 200, $headers);
-}
+    private function writeActionLog(string $actionType, string $targetName, string $details): void
+    {
+        AdminActionLog::create([
+            'admin_name' => $this->getActorName(),
+            'action_type' => $actionType,
+            'target_name' => $targetName,
+            'details' => $details,
+        ]);
+    }
+
+    private function getActorName(): string
+    {
+        return auth()->user()->name
+            ?: (auth()->user()->username ?: 'Staff');
+    }
 }
