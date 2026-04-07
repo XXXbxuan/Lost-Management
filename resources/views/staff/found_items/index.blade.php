@@ -48,12 +48,35 @@
                         @endphp
 
                         @foreach ($filters as $filter)
+                            @php
+                                $filterClass = match ($filter) {
+                                    'All' => $status === $filter
+                                        ? 'border-gray-800 bg-gray-800 text-white'
+                                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+
+                                    'Unclaimed' => $status === $filter
+                                        ? 'border-red-200 bg-red-100 text-red-700'
+                                        : 'border-red-100 bg-white text-red-500 hover:bg-red-50',
+
+                                    'Matched' => $status === $filter
+                                        ? 'border-yellow-200 bg-yellow-100 text-yellow-700'
+                                        : 'border-yellow-100 bg-white text-yellow-600 hover:bg-yellow-50',
+
+                                    'Claimed' => $status === $filter
+                                        ? 'border-cyan-200 bg-cyan-100 text-cyan-700'
+                                        : 'border-cyan-100 bg-white text-cyan-600 hover:bg-cyan-50',
+
+                                    'Removed' => $status === $filter
+                                        ? 'border-gray-300 bg-gray-200 text-gray-700'
+                                        : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50',
+
+                                    default => 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+                                };
+                            @endphp
+
                             <a
                                 href="{{ route('staff.found-items.index', ['status' => $filter]) }}"
-                                class="rounded-full border px-5 py-2 text-xs font-bold no-underline shadow-sm transition duration-200
-                                    {{ $status === $filter
-                                        ? 'border-gray-800 bg-gray-800 text-white'
-                                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50' }}"
+                                class="rounded-full border px-5 py-2 text-xs font-bold no-underline shadow-sm transition duration-200 {{ $filterClass }}"
                             >
                                 {{ $filter }}
                             </a>
@@ -118,12 +141,21 @@
                                         <td class="px-6 py-3 text-center">
                                             @php
                                                 $statusClass = match ($item->status) {
-                                                    'Matched' => 'bg-blue-100 text-blue-800 border-blue-200',
-                                                    'Claimed' => 'bg-green-100 text-green-800 border-green-200',
-                                                    'Unclaimed' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
-                                                    default => 'bg-gray-100 text-gray-800 border-gray-200',
+                                                    'Unclaimed' => 'border-red-200 bg-red-100 text-red-700',
+                                                    'Matched' => 'border-yellow-200 bg-yellow-100 text-yellow-700',
+                                                    'Claimed' => 'border-cyan-200 bg-cyan-100 text-cyan-700',
+                                                    'Removed' => 'border-gray-300 bg-gray-200 text-gray-700',
+                                                    default => 'border-gray-200 bg-gray-100 text-gray-700',
                                                 };
-                                            @endphp
+
+                                                $actionButtonClass = match ($item->status) {
+                                                    'Unclaimed' => 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800',
+                                                    'Matched' => 'border-yellow-300 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 hover:text-yellow-800',
+                                                    'Claimed' => 'border-cyan-300 bg-cyan-100 text-cyan-700 hover:bg-cyan-200 hover:text-cyan-800',
+                                                    'Removed' => 'border-gray-400 bg-gray-200 text-gray-700 hover:bg-gray-300 hover:text-gray-800',
+                                                    default => 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800',
+                                                };
+                                                                                            @endphp
 
                                             <span class="{{ $statusClass }} rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider">
                                                 {{ $item->status }}
@@ -166,7 +198,7 @@
                                                 <button
                                                     type="button"
                                                     @click="openMenu = !openMenu"
-                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition {{ $actionButtonClass }}"
                                                     title="Open actions"
                                                 >
                                                     🔍

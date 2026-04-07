@@ -39,12 +39,31 @@
                         @endphp
 
                         @foreach ($filters as $filter)
+                            @php
+                                $filterClass = match ($filter) {
+                                    'All' => ($status ?? 'All') === $filter
+                                        ? 'border-gray-800 bg-gray-800 text-white'
+                                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+
+                                    'LOST' => ($status ?? 'All') === $filter
+                                        ? 'border-red-200 bg-red-100 text-red-700'
+                                        : 'border-red-100 bg-white text-red-500 hover:bg-red-50',
+
+                                    'Matched' => ($status ?? 'All') === $filter
+                                        ? 'border-yellow-200 bg-yellow-100 text-yellow-700'
+                                        : 'border-yellow-100 bg-white text-yellow-600 hover:bg-yellow-50',
+
+                                    'Claimed' => ($status ?? 'All') === $filter
+                                        ? 'border-cyan-200 bg-cyan-100 text-cyan-700'
+                                        : 'border-cyan-100 bg-white text-cyan-600 hover:bg-cyan-50',
+
+                                    default => 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+                                };
+                            @endphp
+
                             <a
                                 href="{{ route('staff.lost-items.index', ['status' => $filter]) }}"
-                                class="rounded-full border px-5 py-2 text-xs font-bold no-underline shadow-sm transition duration-200
-                                    {{ ($status ?? 'All') === $filter
-                                        ? 'border-red-600 bg-red-600 text-white'
-                                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50' }}"
+                                class="rounded-full border px-5 py-2 text-xs font-bold no-underline shadow-sm transition duration-200 {{ $filterClass }}"
                             >
                                 {{ $filter === 'LOST' ? 'Lost (Unsolved)' : $filter }}
                             </a>
@@ -120,19 +139,24 @@
                                         </td>
 
                                         <td class="px-6 py-4 text-center">
-                                            @if ($lostItem->status == 'Matched' || $lostItem->status == 'Reschedule Requested')
-                                                <span class="rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">
-                                                    {{ $lostItem->status == 'Reschedule Requested' ? 'Reschedule' : 'Matched' }}
-                                                </span>
-                                            @elseif ($lostItem->status == 'Claimed')
-                                                <span class="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-500">
-                                                    Claimed
-                                                </span>
-                                            @else
-                                                <span class="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-600">
-                                                    LOST
-                                                </span>
-                                            @endif
+                                            @php
+                                                $statusClass = match ($lostItem->status) {
+                                                    'Matched', 'Reschedule Requested' => 'border-yellow-200 bg-yellow-100 text-yellow-700',
+                                                    'Claimed' => 'border-cyan-200 bg-cyan-100 text-cyan-700',
+                                                    'LOST', 'Lost' => 'border-red-200 bg-red-100 text-red-700',
+                                                    default => 'border-gray-200 bg-gray-100 text-gray-700',
+                                                };
+
+                                                $statusLabel = match ($lostItem->status) {
+                                                    'Reschedule Requested' => 'Matched',
+                                                    'LOST', 'Lost' => 'LOST',
+                                                    default => $lostItem->status,
+                                                };
+                                            @endphp
+
+                                            <span class="{{ $statusClass }} rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+                                                {{ $statusLabel }}
+                                            </span>
                                         </td>
 
                                         <td
@@ -148,13 +172,20 @@
                                                         ->latest('id')
                                                         ->first();
                                                 }
+
+                                                $actionButtonClass = match ($lostItem->status) {
+                                                    'LOST', 'Lost' => 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800',
+                                                    'Matched', 'Reschedule Requested' => 'border-yellow-300 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 hover:text-yellow-800',
+                                                    'Claimed' => 'border-cyan-300 bg-cyan-100 text-cyan-700 hover:bg-cyan-200 hover:text-cyan-800',
+                                                    default => 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800',
+                                                };
                                             @endphp
 
                                             <div class="relative inline-block text-left">
                                                 <button
                                                     type="button"
                                                     @click="openMenu = !openMenu"
-                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
+                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition {{ $actionButtonClass }}"
                                                     title="Open actions"
                                                 >
                                                     ✈️
@@ -294,67 +325,67 @@
                                                                 ])
                                                             </div>
                                                         @else
-                                                            <div class="mb-6 w-full rounded-[3rem] border border-slate-200 bg-white py-10">
-                                                                <div class="relative flex items-start justify-center px-8">
-                                                                    <div class="relative mx-auto flex w-full max-w-5xl items-center justify-center">
-                                                                        <div class="absolute left-[17%] right-[17%] top-5 z-0 h-[2px] bg-gray-200"></div>
+                                                            <div class="mb-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+                                                                <div class="w-full py-10 bg-white rounded-[3rem]">
+                                                                    <div class="flex items-start justify-between relative px-8">
+                                                                        <div class="absolute top-5 left-16 right-16 h-1 bg-gray-200 -z-10"></div>
 
-                                                                        <div class="relative z-10 flex w-1/5 flex-col items-center">
-                                                                            <div class="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-green-500 text-xl font-bold text-white shadow-md">
+                                                                        <div class="flex flex-col items-center w-1/5 relative group">
+                                                                            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                                                                                 ✓
                                                                             </div>
                                                                             <h3 class="mt-2 text-sm font-bold text-gray-800">Report</h3>
-                                                                            <div class="mt-1 space-y-1 text-center text-[10px] text-gray-500">
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
                                                                                 <p class="font-bold">{{ optional($lostItem->created_at)->format('M d, h:i A') ?? 'N/A' }}</p>
-                                                                                <p class="mx-auto w-28 truncate font-medium text-indigo-500">
+                                                                                <p class="truncate w-24 mx-auto text-indigo-500 font-medium">
                                                                                     Lost: {{ $lostItem->lost_location ?? 'N/A' }}
                                                                                 </p>
-                                                                                <p class="break-words text-indigo-600 font-black uppercase italic">
+                                                                                <p class="text-indigo-600 font-black uppercase italic break-words">
                                                                                     {{ $lostItem->item_name ?? 'N/A' }}
                                                                                 </p>
-                                                                                <p class="font-bold text-indigo-400">
+                                                                                <p class="text-indigo-400 font-bold">
                                                                                     By: {{ $lostItem->staff?->name ?? 'Staff' }}
                                                                                 </p>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div class="relative z-10 flex w-1/5 flex-col items-center">
-                                                                            <div class="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-xl font-bold text-white shadow-md">
+                                                                        <div class="flex flex-col items-center w-1/5 relative group">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                                                                                 2
                                                                             </div>
                                                                             <h3 class="mt-2 text-sm font-bold text-gray-400">Matched</h3>
-                                                                            <div class="mt-1 text-center text-[10px] italic text-gray-400">
-                                                                                Awaiting match
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                                                                                <p class="italic text-gray-400">Awaiting match...</p>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div class="relative z-10 flex w-1/5 flex-col items-center">
-                                                                            <div class="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-xl font-bold text-white shadow-md">
+                                                                        <div class="flex flex-col items-center w-1/5 relative group">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                                                                                 3
                                                                             </div>
                                                                             <h3 class="mt-2 text-sm font-bold text-gray-400">Appointment</h3>
-                                                                            <div class="mt-1 text-center text-[10px] italic text-gray-400">
-                                                                                Pending
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                                                                                <p class="italic text-gray-400">Awaiting schedule...</p>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div class="relative z-10 flex w-1/5 flex-col items-center">
-                                                                            <div class="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-xl font-bold text-white shadow-md">
+                                                                        <div class="flex flex-col items-center w-1/5 relative group">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                                                                                 4
                                                                             </div>
                                                                             <h3 class="mt-2 text-sm font-bold text-gray-400">Confirmed</h3>
-                                                                            <div class="mt-1 text-center text-[10px] italic text-gray-400">
-                                                                                Pending
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                                                                                <p class="italic text-gray-400">Waiting for user...</p>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div class="relative z-10 flex w-1/5 flex-col items-center">
-                                                                            <div class="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-xl font-bold text-white shadow-md">
+                                                                        <div class="flex flex-col items-center w-1/5 relative group">
+                                                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md z-10 border-4 border-white">
                                                                                 5
                                                                             </div>
-                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Claimed</h3>
-                                                                            <div class="mt-1 text-center text-[10px] italic text-gray-400">
-                                                                                Pending
+                                                                            <h3 class="mt-2 text-sm font-bold text-gray-400">Handover</h3>
+                                                                            <div class="mt-1 text-[10px] text-center text-gray-500 space-y-1">
+                                                                                <p class="italic text-gray-400 font-bold uppercase text-[9px]">Awaiting Scan</p>
                                                                             </div>
                                                                         </div>
                                                                     </div>

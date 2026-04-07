@@ -261,7 +261,9 @@
 
                                         <div class="truncate text-[9px]">
                                             <p class="truncate font-bold text-gray-600">#{{ $rejected->id }}</p>
-                                            <p class="italic text-gray-400">Rejected</p>
+                                            <p class="italic {{ $rejected->status === 'Removed' ? 'text-red-400' : 'text-gray-400' }}">
+                                                {{ $rejected->status === 'Removed' ? 'Removed' : 'Rejected' }}
+                                            </p>
                                         </div>
                                     </div>
                                 @endforeach

@@ -9,6 +9,8 @@ use App\Http\Requests\Staff\RemoveFoundItemRequest;
 use App\Models\AdminActionLog;
 use App\Models\FoundItem;
 use App\Models\InventoryMovement;
+use App\Models\LostItemReport;
+use App\Models\MatchRecord;
 use App\Models\StorageSlot;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -174,6 +176,30 @@ class InventoryController extends Controller
                 'removal_reason' => $validated['removal_reason'],
                 'storage_location' => null,
             ]);
+
+            $activeMatch = MatchRecord::where('foundId', $item->id)
+                ->whereIn('status', ['Verified', 'Confirmed', 'Reschedule Requested'])
+                ->latest('id')
+                ->first();
+
+            if ($activeMatch) {
+                $existingNotes = trim((string) $activeMatch->notes);
+
+                $activeMatch->update([
+                    'status' => 'Rejected',
+                    'notes' => $existingNotes !== ''
+                        ? $existingNotes . "\nAuto-updated: linked found item was removed from inventory."
+                        : 'Auto-updated: linked found item was removed from inventory.',
+                ]);
+
+                $linkedLostItem = LostItemReport::find($activeMatch->lostId);
+
+                if ($linkedLostItem && $linkedLostItem->status !== 'Claimed') {
+                    $linkedLostItem->update([
+                        'status' => 'LOST',
+                    ]);
+                }
+            }
 
             InventoryMovement::create([
                 'found_item_id' => $item->id,
