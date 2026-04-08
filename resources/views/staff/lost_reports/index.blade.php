@@ -344,7 +344,7 @@
                                                                                     {{ $lostItem->item_name ?? 'N/A' }}
                                                                                 </p>
                                                                                 <p class="text-indigo-400 font-bold">
-                                                                                    By: {{ $lostItem->staff?->name ?? 'Staff' }}
+                                                                                    By: {{ $lostItem->staff?->name ?? $lostItem->passenger_name ?? 'Passenger' }}
                                                                                 </p>
                                                                             </div>
                                                                         </div>

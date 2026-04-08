@@ -15,8 +15,16 @@
         $foundStaffName = $match->foundItem->staff->name ?? '-';
         $foundStaffId = $match->foundItem->staff->staff_id ?? ($match->foundItem->staff_id ?? '-');
 
-        $lostStaffName = $match->lostItem->staff->name ?? '-';
-        $lostStaffId = $match->lostItem->staff->staff_id ?? ($match->lostItem->staff_id ?? '-');
+        $lostRegistryName = $match->lostItem->staff->name
+            ?? $match->lostItem->passenger_name
+            ?? '-';
+
+        $lostRegistryId = $match->lostItem->staff->staff_id
+            ?? ($match->lostItem->staff_id ?? null);
+
+        $lostRegistryMeta = $match->lostItem->staff
+            ? 'Staff ID: #' . $lostRegistryId
+            : 'Passenger Submission';
 
         $verifyStaffName = $match->verifier->staff->name ?? $match->verifier->name ?? 'ADMIN';
         $verifyStaffId = $match->verifier->staff->staff_id ?? '-';
@@ -352,10 +360,10 @@
                                 Action: Assisted Registry
                             </p>
                             <p class="mt-1 text-base font-black uppercase leading-none text-slate-900">
-                                {{ $lostStaffName }}
+                                {{ $lostRegistryName }}
                             </p>
                             <p class="text-[11px] font-bold uppercase text-indigo-500">
-                                Staff ID: {{ $lostStaffId ? '#'.$lostStaffId : '-' }}
+                                {{ $lostRegistryMeta }}
                             </p>
                         </div>
                     </div>

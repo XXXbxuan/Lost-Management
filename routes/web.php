@@ -40,13 +40,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::prefix('passenger')->name('passenger.')->group(function () {
-        Route::get('/report', [DashboardController::class, 'createLostReport'])->name('report');
-        Route::get('/found-items', [DashboardController::class, 'browseFoundItems'])->name('found_items');
-        Route::get('/rewards', [DashboardController::class, 'showRewardsCenter'])->name('rewards');
-        Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
-        Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
-        Route::post('/voucher/{id}/use', [DashboardController::class, 'markVoucherAsUsed'])->name('voucher.use');
-    });
+    Route::get('/report', [DashboardController::class, 'createLostReport'])->name('report');
+    Route::post('/report', [DashboardController::class, 'storeLostReport'])->name('report.store');
+    Route::get('/found-items', [DashboardController::class, 'browseFoundItems'])->name('found_items');
+    Route::get('/rewards', [DashboardController::class, 'showRewardsCenter'])->name('rewards');
+    Route::post('/redeem/{id}', [DashboardController::class, 'redeemVoucher'])->name('redeem');
+    Route::get('/history', [DashboardController::class, 'showHistory'])->name('history');
+    Route::post('/voucher/{id}/use', [DashboardController::class, 'markVoucherAsUsed'])->name('voucher.use');
+});
 
     Route::prefix('staff')->name('staff.')->group(function () {
         Route::get('/dashboard', [StaffController::class, 'analyticsOverview'])->name('dashboard');

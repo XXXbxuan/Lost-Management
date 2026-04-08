@@ -35,7 +35,7 @@
             $reportStaffName = $reportStaff?->name;
         }
 
-        $step1By = $reportStaffName ?? 'Staff';
+        $step1By = $reportStaffName ?? $lostItem?->passenger_name ?? 'Passenger';
         $step1LocationLabel = 'Lost';
     }
 @endphp

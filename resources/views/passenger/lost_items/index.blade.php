@@ -104,7 +104,7 @@
                         </div>
                     </div>
 
-                    <form method="POST" action="{{ route('staff.lost-items.store') }}" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('passenger.report.store') }}" enctype="multipart/form-data">
                         @csrf
 
                         <input type="hidden" name="status" value="Lost">
@@ -372,11 +372,7 @@
                         </div>
                     </form>
 
-                    <div class="mt-6 rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
-                        Submit success should create a record in the same lost report system used by staff, because this form posts to
-                        <span class="font-bold">staff.lost-items.store</span>.
-                        To confirm success, check whether the new report appears in the staff Lost Reports list or in your passenger history page.
-                    </div>
+                    
                 </div>
             </div>
         </div>

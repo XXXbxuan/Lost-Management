@@ -7,6 +7,7 @@ use App\Models\FoundItem;
 use App\Models\LostItemReport;
 use App\Models\MatchRecord;
 use App\Models\Staff;
+use App\Models\User;
 
 class AIRecordLookupService
 {
@@ -120,7 +121,24 @@ class AIRecordLookupService
 
         $claim = $match ? $this->findLatestClaimByMatchId($match->id) : null;
 
-        $staffName = $report->staff?->name ?? $report->staff?->user?->name ?? 'N/A';
+        $creatorType = 'Passenger';
+        $creatorName = $report->passenger_name ?: 'N/A';
+        $creatorStaffId = 'N/A';
+        $creatorPassengerId = 'N/A';
+
+        if ($report->staff) {
+            $creatorType = 'Staff';
+            $creatorName = $report->staff->name ?? $report->staff->user?->name ?? 'N/A';
+            $creatorStaffId = $report->staff->staff_id ?? 'N/A';
+        } else {
+            $passengerUser = null;
+
+            if (!empty($report->passenger_email)) {
+                $passengerUser = User::where('email', $report->passenger_email)->first();
+            }
+
+            $creatorPassengerId = $passengerUser?->id ?? 'N/A';
+        }
 
         return
             "Lost Report Summary\n\n" .
@@ -137,7 +155,10 @@ class AIRecordLookupService
             "Flight Number: " . ($report->flight_number ?: '-') . "\n" .
             "Lost Time: " . ($report->lost_time ?: '-') . "\n" .
             "Status: {$report->status}\n" .
-            "Created By: {$staffName}\n" .
+            "Created By: {$creatorName}\n" .
+            "Creator Type: {$creatorType}\n" .
+            "Staff ID: {$creatorStaffId}\n" .
+            "Passenger ID: {$creatorPassengerId}\n" .
             "Description: " . ($report->description ?: 'No description provided.') . "\n" .
             "Match Record: " . ($match ? "#{$match->id}" : 'None') . "\n" .
             "Claim Record: " . ($claim ? "#{$claim->id}" : 'None');
