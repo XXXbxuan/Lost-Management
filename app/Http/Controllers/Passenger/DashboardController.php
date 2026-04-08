@@ -16,7 +16,7 @@ class DashboardController extends Controller
 {
     public function createLostReport(): View
     {
-        return view('passenger.lost_items.create');
+        return view('passenger.lost_items.index');
     }
 
     public function browseFoundItems(): View

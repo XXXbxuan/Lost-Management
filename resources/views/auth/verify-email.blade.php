@@ -32,7 +32,7 @@
                         type="submit"
                         class="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
                     >
-                        Resend Verification Email
+                        Send Verification Email
                     </button>
                 </form>
 

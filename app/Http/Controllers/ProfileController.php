@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Throwable;
@@ -51,11 +52,22 @@ class ProfileController extends Controller
 
     public function destroy(DeleteUserAccountRequest $request): RedirectResponse
     {
+        $request->validated();
+
         $user = $request->user();
 
-        Auth::logout();
+        DB::transaction(function () use ($user) {
+            $suffix = now()->format('YmdHis') . '_' . $user->id;
 
-        $user->delete();
+            $user->update([
+                'email' => 'deleted_' . $suffix . '_' . $user->email,
+                'username' => $user->username . '_deleted_' . $suffix,
+            ]);
+
+            $user->delete();
+        });
+
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

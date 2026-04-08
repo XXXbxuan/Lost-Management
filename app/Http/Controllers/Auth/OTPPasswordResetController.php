@@ -28,6 +28,16 @@ class OTPPasswordResetController extends Controller
         $validated = $request->validated();
         $email = $validated['email'];
 
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return back()
+                ->withErrors([
+                    'email' => 'No account found for this email address.',
+                ])
+                ->withInput();
+        }
+
         PasswordResetCode::where('email', $email)->delete();
 
         $code = random_int(100000, 999999);
@@ -77,6 +87,14 @@ class OTPPasswordResetController extends Controller
         }
 
         $user = User::where('email', $validated['email'])->first();
+
+        if (!$user) {
+            PasswordResetCode::where('email', $validated['email'])->delete();
+
+            return redirect()->route('password.request')->withErrors([
+                'email' => 'This account no longer exists.',
+            ]);
+        }
 
         $user->update([
             'password' => Hash::make($validated['password']),
