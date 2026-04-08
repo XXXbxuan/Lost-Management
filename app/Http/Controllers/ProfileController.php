@@ -62,6 +62,9 @@ class ProfileController extends Controller
             $user->update([
                 'email' => 'deleted_' . $suffix . '_' . $user->email,
                 'username' => $user->username . '_deleted_' . $suffix,
+                'provider_id' => $user->provider === 'google' && $user->provider_id
+                    ? $user->provider_id . '_deleted_' . $suffix
+                    : $user->provider_id,
             ]);
 
             $user->delete();

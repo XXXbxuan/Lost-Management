@@ -55,4 +55,39 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkUrl = @json(route('verification.notice'));
+            const currentUrl = window.location.href;
+
+            const timer = setInterval(async () => {
+                try {
+                    const response = await fetch(checkUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html',
+                        },
+                    });
+
+                    if (response.redirected && response.url && response.url !== currentUrl) {
+                        clearInterval(timer);
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    if (response.url && !response.url.includes('/verify-email')) {
+                        clearInterval(timer);
+                        window.location.href = response.url;
+                    }
+                } catch (error) {
+                    console.error('Verification polling failed:', error);
+                }
+            }, 2000);
+
+            window.addEventListener('beforeunload', () => clearInterval(timer));
+        });
+    </script>
 </x-guest-layout>

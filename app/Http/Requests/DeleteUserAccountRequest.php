@@ -15,6 +15,10 @@ class DeleteUserAccountRequest extends FormRequest
 
     public function rules(): array
     {
+        if ($this->user()?->provider === 'google') {
+            return [];
+        }
+
         return [
             'password' => ['required', 'current_password'],
         ];

@@ -5,6 +5,10 @@
         </h2>
     </x-slot>
 
+    @php
+        $staffUser = $staff->user;
+    @endphp
+
     <div class="py-12">
         <div class="max-w-4xl mx-auto space-y-6 sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -16,7 +20,7 @@
                     <form
                         method="POST"
                         action="{{ route('admin.staff.update', $staff->staff_id) }}"
-                        onsubmit="return confirm('Are you sure you want to change the status of this user?');"
+                        onsubmit="return confirm('Are you sure you want to save the changes for this user?');"
                     >
                         @csrf
                         @method('PUT')
@@ -42,7 +46,7 @@
                                     class="block mt-1 w-full"
                                     type="email"
                                     name="email"
-                                    :value="old('email', $staff->user->email)"
+                                    :value="old('email', $staffUser?->email ?? '')"
                                     required
                                 />
                                 <x-input-error :messages="$errors->get('email')" class="mt-2" />
@@ -55,7 +59,7 @@
                                     class="block mt-1 w-full"
                                     type="text"
                                     name="username"
-                                    :value="old('username', $staff->user->username)"
+                                    :value="old('username', $staffUser?->username ?? '')"
                                     required
                                 />
                                 <x-input-error :messages="$errors->get('username')" class="mt-2" />
@@ -81,10 +85,10 @@
                                     name="role"
                                     class="block mt-1 w-full rounded-md border-gray-300 shadow-sm"
                                 >
-                                    <option value="Staff" {{ old('role', $staff->user->role) == 'Staff' ? 'selected' : '' }}>
+                                    <option value="Staff" {{ old('role', $staffUser?->role ?? '') == 'Staff' ? 'selected' : '' }}>
                                         Staff
                                     </option>
-                                    <option value="Admin" {{ old('role', $staff->user->role) == 'Admin' ? 'selected' : '' }}>
+                                    <option value="Admin" {{ old('role', $staffUser?->role ?? '') == 'Admin' ? 'selected' : '' }}>
                                         Admin
                                     </option>
                                 </select>
