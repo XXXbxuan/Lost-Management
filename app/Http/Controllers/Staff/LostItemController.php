@@ -192,7 +192,6 @@ class LostItemController extends Controller
                 });
             }
         } else {
-            $query->where('category', $lostItem->category);
 
             if ($lostItem->lost_time) {
                 $query->whereDate('found_time', '>=', $lostItem->lost_time->format('Y-m-d'));
