@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('vouchers', function (Blueprint $table) {
             $table->id();
-            $table->string('name');       // e.g., "Starbucks Coffee"
-            $table->string('category');   // e.g., "Food & Beverage"
-            $table->integer('points');    // e.g., 500
-            $table->text('description');  // e.g., "Redeem a tall latte..."
+            $table->string('name');       
+            $table->string('category');   
+            $table->integer('points');    
+            $table->text('description');  
             $table->timestamps();
         });
     }

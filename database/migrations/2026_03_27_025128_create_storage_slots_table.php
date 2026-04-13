@@ -10,11 +10,11 @@ return new class extends Migration
     {
         Schema::create('storage_slots', function (Blueprint $table) {
             $table->id();
-            $table->string('zone_code');      // GEN / VAULT / BAG
-            $table->string('shelf_code');     // S1 / S2 / S3
-            $table->string('slot_code');      // 01 ~ 10
-            $table->string('full_code')->unique(); // GEN-S1-01
-            $table->string('slot_status')->default('Available'); // Available / Service
+            $table->string('zone_code');      
+            $table->string('shelf_code');    
+            $table->string('slot_code');      
+            $table->string('full_code')->unique(); 
+            $table->string('slot_status')->default('Available'); 
             $table->text('remark')->nullable();
             $table->timestamps();
 

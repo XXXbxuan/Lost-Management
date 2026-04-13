@@ -8,7 +8,7 @@ class StoreFoundItemRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // 允许所有人通过
+        return true; 
     }
 
     public function rules(): array

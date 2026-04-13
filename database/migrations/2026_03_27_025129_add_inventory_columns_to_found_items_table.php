@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('found_item_id')->constrained('found_items')->onDelete('cascade');
             $table->string('from_location')->nullable();
             $table->string('to_location')->nullable();
-            $table->string('action_type'); // move / remove / auto_remove / edit
+            $table->string('action_type'); 
             $table->text('remarks')->nullable();
             $table->foreignId('performed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

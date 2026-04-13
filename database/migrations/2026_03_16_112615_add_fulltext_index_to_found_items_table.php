@@ -9,7 +9,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('found_items', function (Blueprint $table) {
-            // Full-text index for smarter text matching
             $table->fullText(['item_name', 'brand', 'description'], 'found_items_fulltext');
         });
     }
